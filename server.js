@@ -2,7 +2,6 @@ const express = require('express');
 const fetch = require('node-fetch');
 const cors = require('cors');
 const morgan = require('morgan');
-const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -21,11 +20,19 @@ if (!initialAccessToken || !clientId || !clientSecret || !refreshToken) {
   process.exit(1);
 }
 
-// CORS Configuration
+// ** Global CORS Configuration **
 app.use(cors({
-  origin: '*', // Allow all origins for testing
+  origin: '*', // Allow all origins for testing, restrict this in production
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'client_id',
+    'client_secret',
+    'FOXY-API-VERSION',
+    'X-Requested-With',
+  ],
+  exposedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 // Use morgan for HTTP request logging
@@ -68,28 +75,7 @@ const refreshAccessToken = async () => {
 };
 
 /**
- * General Proxy Middleware
- * This allows the proxy to handle requests to any external service (non-FoxyCart)
- */
-app.use('/proxy', createProxyMiddleware({
-  target: '', // Target will be dynamically changed based on request
-  changeOrigin: true,
-  secure: true,
-  router: (req) => {
-    const targetUrl = req.path.replace(/^\/proxy\//, '');
-    console.log(`Proxying request to: ${targetUrl}`);
-    return targetUrl;
-  },
-  onError: (err, req, res) => {
-    console.error('CORS Proxy error:', err);
-    res.status(500).json({ error: 'CORS Proxy encountered an error.' });
-  },
-  logLevel: 'debug', // Change to 'info' or 'error' in production
-}));
-
-/**
  * Route to test token refresh manually
- * Now returns all env variables including client_id, client_secret, and refresh_token
  */
 app.get('/refresh-token-test', async (req, res) => {
   try {
@@ -110,6 +96,9 @@ app.get('/refresh-token-test', async (req, res) => {
 app.get('/', (req, res) => {
   res.send('CORS Proxy Server is running.');
 });
+
+// ** CORS Middleware to handle Preflight Requests **
+app.options('*', cors());  // Handle preflight CORS requests for all routes
 
 // Start the Server
 app.listen(PORT, () => {
