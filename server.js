@@ -1,49 +1,56 @@
-// Listen on a specific host via the HOST environment variable
-var host = process.env.HOST || '0.0.0.0';
-// Listen on a specific port via the PORT environment variable
-var port = process.env.PORT || 8080;
-
-// Grab the blacklist from the command-line so that we can update the blacklist without deploying
-// again. CORS Anywhere is open by design, and this blacklist is not used, except for countering
-// immediate abuse (e.g. denial of service). If you want to block all origins except for some,
-// use originWhitelist instead.
-var originBlacklist = parseEnvList(process.env.CORSANYWHERE_BLACKLIST);
-var originWhitelist = parseEnvList(process.env.CORSANYWHERE_WHITELIST);
-function parseEnvList(env) {
-  if (!env) {
-    return [];
-  }
-  return env.split(',');
-}
-
-// Set up rate-limiting to avoid abuse of the public CORS Anywhere server.
-var checkRateLimit = require('./lib/rate-limit')(process.env.CORSANYWHERE_RATELIMIT);
-
-var cors_proxy = require('./lib/cors-anywhere');
-cors_proxy.createServer({
-  originBlacklist: originBlacklist,
-  originWhitelist: originWhitelist,
-  requireHeader: ['origin', 'x-requested-with'],
-  checkRateLimit: checkRateLimit,
-  removeHeaders: [
-    'cookie',
-    'cookie2',
-    // Strip Heroku-specific headers
-    'x-request-start',
-    'x-request-id',
-    'via',
-    'connect-time',
-    'total-route-time',
-    // Other Heroku added debug headers
-    // 'x-forwarded-for',
-    // 'x-forwarded-proto',
-    // 'x-forwarded-port',
-  ],
-  redirectSameOrigin: true,
-  httpProxyOptions: {
-    // Do not add X-Forwarded-For, etc. headers, because Heroku already adds it.
-    xfwd: false,
+{
+  "name": "cors-anywhere",
+  "version": "0.4.4",
+  "description": "CORS Anywhere is a reverse proxy which adds CORS headers to the proxied request. Request URL is taken from the path",
+  "license": "MIT",
+  "author": "Rob Wu <rob@robwu.nl>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rob--W/cors-anywhere.git"
   },
-}).listen(port, host, function() {
-  console.log('Running CORS Anywhere on ' + host + ':' + port);
-});
+  "bugs": {
+    "url": "https://github.com/Rob--W/cors-anywhere/issues/",
+    "email": "rob@robwu.nl"
+  },
+  "keywords": [
+    "cors",
+    "cross-domain",
+    "http-proxy",
+    "proxy",
+    "heroku"
+  ],
+  "main": "server.js", // **Changed from "./lib/cors-anywhere.js" to "server.js"**
+  "files": [
+    "lib/",
+    "test/",
+    "Procfile",
+    "demo.html",
+    "server.js"
+  ],
+  "scripts": {
+    "start": "node server.js", // **Added start script**
+    "lint": "eslint .",
+    "test": "mocha ./test/test*.js --reporter spec",
+    "test-coverage": "istanbul cover ./node_modules/.bin/_mocha -- test/test.js test/test-ratelimit.js --reporter spec"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "http-proxy": "1.11.1",
+    "http-proxy-middleware": "^3.0.2",
+    "node-fetch": "^2.7.0",
+    "proxy-from-env": "0.0.1"
+  },
+  "devDependencies": {
+    "coveralls": "^2.11.6",
+    "eslint": "^2.2.0",
+    "istanbul": "^0.4.2",
+    "lolex": "^1.5.0",
+    "mocha": "^3.4.2",
+    "nock": "^8.2.1",
+    "supertest": "^2.0.1"
+  },
+  "engines": {
+    "node": ">=14.x" // **Consider updating to a newer Node.js version for better security and features**
+  }
+}
