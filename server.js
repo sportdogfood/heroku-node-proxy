@@ -2,6 +2,7 @@ const express = require('express');
 const fetch = require('node-fetch');
 const cors = require('cors');
 const morgan = require('morgan');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -65,6 +66,26 @@ const refreshAccessToken = async () => {
     throw error;
   }
 };
+
+/**
+ * General Proxy Middleware
+ * This allows the proxy to handle requests to any external service (non-FoxyCart)
+ */
+app.use('/proxy', createProxyMiddleware({
+  target: '', // Target will be dynamically changed based on request
+  changeOrigin: true,
+  secure: true,
+  router: (req) => {
+    const targetUrl = req.path.replace(/^\/proxy\//, '');
+    console.log(`Proxying request to: ${targetUrl}`);
+    return targetUrl;
+  },
+  onError: (err, req, res) => {
+    console.error('CORS Proxy error:', err);
+    res.status(500).json({ error: 'CORS Proxy encountered an error.' });
+  },
+  logLevel: 'debug', // Change to 'info' or 'error' in production
+}));
 
 /**
  * Route to test token refresh manually
