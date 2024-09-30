@@ -1,5 +1,4 @@
 const express = require('express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
 const fetch = require('node-fetch');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -23,7 +22,7 @@ if (!initialAccessToken || !clientId || !clientSecret || !refreshToken) {
 
 // CORS Configuration
 app.use(cors({
-  origin: '*', // Allow all origins for testing, but restrict this in production
+  origin: '*', // Allow all origins for testing
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -68,77 +67,19 @@ const refreshAccessToken = async () => {
 };
 
 /**
- * Middleware to handle authentication and token refresh
- */
-let currentAccessToken = initialAccessToken;
-let tokenExpiration = Date.now() + (3600 * 1000); // Assuming token is valid for 1 hour; adjust based on actual expiration
-
-const isTokenExpired = () => {
-  return Date.now() >= tokenExpiration;
-};
-
-// Middleware to attach the current access token to the request
-app.use(async (req, res, next) => {
-  if (isTokenExpired()) {
-    try {
-      currentAccessToken = await refreshAccessToken();
-      tokenExpiration = Date.now() + (3600 * 1000); // Reset expiration time; adjust as needed
-      console.log('Access token updated.');
-    } catch (error) {
-      return res.status(500).json({ error: 'Failed to refresh access token.' });
-    }
-  }
-  req.accessToken = currentAccessToken;
-  next();
-});
-
-/**
- * Dynamic FoxyCart API Handler with Proxy
- * Allows client-side to specify the API path and method dynamically
- */
-app.use('/foxycart', async (req, res, next) => {
-  try {
-    // Refresh the token before proceeding with the proxy request
-    const accessToken = await refreshAccessToken();
-
-    createProxyMiddleware({
-      target: 'https://api.foxycart.com',
-      changeOrigin: true,
-      secure: true,
-      pathRewrite: {
-        '^/foxycart': '', // Remove '/foxycart' prefix before sending the request to FoxyCart
-      },
-      onProxyReq: (proxyReq) => {
-        // Attach the Authorization header with the refreshed access token
-        proxyReq.setHeader('Authorization', `Bearer ${accessToken}`);
-        proxyReq.setHeader('FOXY-API-VERSION', '1');
-        proxyReq.setHeader('Content-Type', 'application/json');
-      },
-      onProxyRes: (proxyRes, req, res) => {
-        // Add CORS headers to the proxied response
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      },
-      onError: (err) => {
-        console.error('API Proxy error:', err);
-        res.status(500).json({ error: 'Failed to process request through proxy.' });
-      },
-      logLevel: 'debug', // Keep log level at debug for troubleshooting
-    })(req, res, next); // Apply the proxy middleware to the request
-  } catch (error) {
-    console.error('Error refreshing token:', error);
-    res.status(500).json({ error: 'Failed to refresh token before proxy request.' });
-  }
-});
-
-/**
  * Route to test token refresh manually
+ * Now returns all env variables including client_id, client_secret, and refresh_token
  */
 app.get('/refresh-token-test', async (req, res) => {
   try {
     const newAccessToken = await refreshAccessToken();
-    res.json({ message: 'Token refreshed successfully', accessToken: newAccessToken });
+    res.json({
+      message: 'Token refreshed successfully',
+      accessToken: newAccessToken,
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to refresh token' });
   }
