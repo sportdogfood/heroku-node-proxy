@@ -1,5 +1,3 @@
-// server.js
-
 const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const fetch = require('node-fetch');
@@ -25,7 +23,7 @@ if (!initialAccessToken || !clientId || !clientSecret || !refreshToken) {
 
 // CORS Configuration
 app.use(cors({
-  origin: '*', // Allow all origins for testing
+  origin: '*', // Allow all origins for testing, but restrict this in production
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -95,64 +93,44 @@ app.use(async (req, res, next) => {
 });
 
 /**
- * Dynamic FoxyCart API Handler
+ * Dynamic FoxyCart API Handler with Proxy
  * Allows client-side to specify the API path and method dynamically
  */
-app.all('/foxycart/*', async (req, res) => {
-  const { method, body } = req;
-  const foxyCartApiUrl = `https://api.foxycart.com${req.path.replace('/foxycart', '')}`; // Construct the API URL
-
+app.use('/foxycart', async (req, res, next) => {
   try {
-    // Make the dynamic request to the FoxyCart API
-    const response = await fetch(foxyCartApiUrl, {
-      method: method.toUpperCase(), // Use the method (GET, POST, PATCH, etc.)
-      headers: {
-        'Authorization': `Bearer ${req.accessToken}`,
-        'FOXY-API-VERSION': '1',
-        'client_id': clientId,
-        'client_secret': clientSecret,
-        'Content-Type': 'application/json',
+    // Refresh the token before proceeding with the proxy request
+    const accessToken = await refreshAccessToken();
+
+    createProxyMiddleware({
+      target: 'https://api.foxycart.com',
+      changeOrigin: true,
+      secure: true,
+      pathRewrite: {
+        '^/foxycart': '', // Remove '/foxycart' prefix before sending the request to FoxyCart
       },
-      body: method === 'POST' || method === 'PATCH' ? JSON.stringify(body) : null, // Add body if it's POST or PATCH
-    });
-
-    if (!response.ok) {
-      throw new Error(`${method} request failed: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    res.json(data);
+      onProxyReq: (proxyReq) => {
+        // Attach the Authorization header with the refreshed access token
+        proxyReq.setHeader('Authorization', `Bearer ${accessToken}`);
+        proxyReq.setHeader('FOXY-API-VERSION', '1');
+        proxyReq.setHeader('Content-Type', 'application/json');
+      },
+      onProxyRes: (proxyRes, req, res) => {
+        // Add CORS headers to the proxied response
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      },
+      onError: (err) => {
+        console.error('API Proxy error:', err);
+        res.status(500).json({ error: 'Failed to process request through proxy.' });
+      },
+      logLevel: 'debug', // Keep log level at debug for troubleshooting
+    })(req, res, next); // Apply the proxy middleware to the request
   } catch (error) {
-    console.error('Error during FoxyCart API request:', error);
-    res.status(500).json({ error: `Failed to ${method} data from FoxyCart API` });
+    console.error('Error refreshing token:', error);
+    res.status(500).json({ error: 'Failed to refresh token before proxy request.' });
   }
 });
-
-/**
- * General CORS Proxy Middleware (For non-FoxyCart services)
- * This proxies any request to /proxy/* to the target URL provided in the path.
- * Example: /proxy/https://example.com/api/data will proxy to https://example.com/api/data
- */
-app.use('/proxy', createProxyMiddleware({
-  target: '', // Target is dynamic based on the request
-  changeOrigin: true,
-  secure: true,
-  router: (req) => {
-    // Extract the target URL from the request path
-    const targetUrl = req.path.replace(/^\/proxy\//, '');
-    console.log(`Proxying to External URL: ${targetUrl}`);
-    return targetUrl;
-  },
-  onProxyReq: (proxyReq, req, res) => {
-    // You can add additional headers here if needed
-    // For example, to add authentication headers for specific services
-  },
-  onError: (err, req, res) => {
-    console.error('CORS Proxy error:', err);
-    res.status(500).json({ error: 'CORS Proxy encountered an error.' });
-  },
-  logLevel: 'debug', // Change to 'info' or 'error' in production
-}));
 
 /**
  * Route to test token refresh manually
