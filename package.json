@@ -19,7 +19,7 @@
     "proxy",
     "heroku"
   ],
-  "main": "server.js", // **Updated from "./lib/cors-anywhere.js" to "server.js"**
+  "main": "server.js", 
   "files": [
     "lib/",
     "test/",
@@ -28,7 +28,7 @@
     "server.js"
   ],
   "scripts": {
-    "start": "node server.js", // **Added start script**
+    "start": "node server.js", 
     "lint": "eslint .",
     "test": "mocha ./test/test*.js --reporter spec",
     "test-coverage": "istanbul cover ./node_modules/.bin/_mocha -- test/test.js test/test-ratelimit.js --reporter spec"
@@ -51,6 +51,6 @@
     "supertest": "^2.0.1"
   },
   "engines": {
-    "node": ">=14.x" // **Updated to a newer Node.js version for better security and features**
+    "node": ">=14.x"
   }
 }
