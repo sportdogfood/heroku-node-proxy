@@ -1,5 +1,3 @@
-// server.js
-
 const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const cors = require('cors');
@@ -26,7 +24,14 @@ if (!clientId || !clientSecret || !refreshToken) {
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'client_id', 'client_secret', 'FOXY-API-VERSION'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'client_id', 
+    'client_secret', 
+    'FOXY-API-VERSION', 
+    'accept-version', // Add 'accept-version' to allowed headers
+  ],
   exposedHeaders: ['Content-Type', 'Authorization'],
 }));
 
@@ -131,7 +136,7 @@ app.use('/foxycart', createProxyMiddleware({
   onProxyRes: (proxyRes, req, res) => {
     // Add CORS headers to the proxied response
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, FOXY-API-VERSION');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, FOXY-API-VERSION, accept-version'); // Added accept-version
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   },
   onError: (err, req, res) => {
