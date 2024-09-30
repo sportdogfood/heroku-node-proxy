@@ -30,7 +30,8 @@ app.use(cors({
     'client_id', 
     'client_secret', 
     'FOXY-API-VERSION', 
-    'accept-version', // Add 'accept-version' to allowed headers
+    'accept-version', 
+    'refresh_token', // Add refresh_token to allowed headers
   ],
   exposedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -136,7 +137,7 @@ app.use('/foxycart', createProxyMiddleware({
   onProxyRes: (proxyRes, req, res) => {
     // Add CORS headers to the proxied response
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, FOXY-API-VERSION, accept-version'); // Added accept-version
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, FOXY-API-VERSION, accept-version, refresh_token'); // Added refresh_token
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   },
   onError: (err, req, res) => {
