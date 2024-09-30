@@ -78,20 +78,25 @@ const isTokenExpired = () => {
   return Date.now() >= tokenExpiration;
 };
 
-// Middleware to attach the current access token to the request
-app.use(async (req, res, next) => {
-  if (isTokenExpired()) {
-    try {
-      currentAccessToken = await refreshAccessToken();
-      tokenExpiration = Date.now() + (3600 * 1000); // Reset expiration time; adjust as needed
-      console.log('Access token updated.');
-    } catch (error) {
-      return res.status(500).json({ error: 'Failed to refresh access token.' });
-    }
+// Middleware to refresh token if necessary and handle proxy request
+app.use('/foxycart', createProxyMiddleware({
+  target: 'https://api.foxycart.com',
+  changeOrigin: true,
+  pathRewrite: {
+    '^/foxycart': '', // Removes '/foxycart' from the proxied request URL
+  },
+  onProxyReq: async (proxyReq, req, res) => {
+    // Ensure the access token is refreshed and add headers
+    const currentAccessToken = await refreshAccessTokenIfNeeded();
+    proxyReq.setHeader('Authorization', `Bearer ${currentAccessToken}`);
+    proxyReq.setHeader('FOXY-API-VERSION', '1');
+    proxyReq.setHeader('Content-Type', 'application/json');
+  },
+  onError: (err, req, res) => {
+    console.error('API Proxy error:', err);
+    res.status(500).json({ error: 'Failed to GET data from FoxyCart API' });
   }
-  req.accessToken = currentAccessToken;
-  next();
-});
+}));
 
 /**
  * Dynamic FoxyCart API Handler
