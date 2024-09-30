@@ -4,28 +4,27 @@ const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const fetch = require('node-fetch');
 const cors = require('cors');
-const URL = require('url').URL;
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
 // Environment Variables
 const {
-  CLIENT_ID,
-  CLIENT_SECRET,
-  ACCESS_TOKEN,
-  REFRESH_TOKEN,
+  accessToken,
+  clientId,
+  clientSecret,
+  refreshToken,
 } = process.env;
 
 // Validate Environment Variables
-if (!CLIENT_ID || !CLIENT_SECRET || !ACCESS_TOKEN || !REFRESH_TOKEN) {
+if (!accessToken || !clientId || !clientSecret || !refreshToken) {
   console.error('Missing necessary environment variables. Please check Config Vars.');
   process.exit(1);
 }
 
 // CORS Configuration
 app.use(cors({
-  origin: 'https://www.sportdogfood.com', // **Replace with your actual Webflow site URL without trailing slash**
+  origin: 'https://www.sportdogfood.com', // Replace with your actual Webflow site URL without trailing slash
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -40,9 +39,9 @@ const refreshAccessToken = async () => {
   const tokenUrl = `https://api.foxycart.com/token`;
   const params = new URLSearchParams();
   params.append('grant_type', 'refresh_token');
-  params.append('refresh_token', REFRESH_TOKEN);
-  params.append('client_id', CLIENT_ID);
-  params.append('client_secret', CLIENT_SECRET);
+  params.append('refresh_token', refreshToken);
+  params.append('client_id', clientId);
+  params.append('client_secret', clientSecret);
 
   try {
     const response = await fetch(tokenUrl, {
@@ -69,8 +68,8 @@ const refreshAccessToken = async () => {
 /**
  * Middleware to handle authentication and token refresh
  */
-let currentAccessToken = ACCESS_TOKEN;
-let tokenExpiration = Date.now() + (3600 * 1000); // **Assuming token is valid for 1 hour; adjust based on actual expiration**
+let currentAccessToken = accessToken;
+let tokenExpiration = Date.now() + (3600 * 1000); // Assuming token is valid for 1 hour; adjust based on actual expiration
 
 const isTokenExpired = () => {
   return Date.now() >= tokenExpiration;
@@ -81,7 +80,7 @@ app.use(async (req, res, next) => {
   if (isTokenExpired()) {
     try {
       currentAccessToken = await refreshAccessToken();
-      tokenExpiration = Date.now() + (3600 * 1000); // **Reset expiration time; adjust as needed**
+      tokenExpiration = Date.now() + (3600 * 1000); // Reset expiration time; adjust as needed
       console.log('Access token updated.');
     } catch (error) {
       return res.status(500).json({ error: 'Failed to refresh access token.' });
@@ -95,15 +94,15 @@ app.use(async (req, res, next) => {
  * Proxy Middleware Configuration for FoxyCart API
  */
 const apiProxy = createProxyMiddleware({
-  target: 'https://api.foxycart.com', // **FoxyCart API base URL**
+  target: 'https://api.foxycart.com', // FoxyCart API base URL
   changeOrigin: true,
   secure: true,
   pathRewrite: (path, req) => {
-    // **Remove the /api prefix when forwarding to FoxyCart**
+    // Remove the /api prefix when forwarding to FoxyCart
     return path.replace(/^\/api/, '');
   },
   onProxyReq: (proxyReq, req, res) => {
-    // **Inject the Authorization header with the access token**
+    // Inject the Authorization header with the access token
     proxyReq.setHeader('Authorization', `Bearer ${req.accessToken}`);
     proxyReq.setHeader('FOXY-API-VERSION', '1');
     proxyReq.setHeader('Content-Type', 'application/json');
@@ -112,44 +111,44 @@ const apiProxy = createProxyMiddleware({
     console.error('API Proxy error:', err);
     res.status(500).json({ error: 'API Proxy encountered an error.' });
   },
-  logLevel: 'debug', // **Change to 'info' or 'error' in production**
+  logLevel: 'debug', // Change to 'info' or 'error' in production
 });
 
-// **Apply the FoxyCart API proxy middleware to all routes starting with /api**
+// Apply the FoxyCart API proxy middleware to all routes starting with /api
 app.use('/api', apiProxy);
 
 /**
  * CORS Anywhere-like Proxy Middleware
- * **This proxies any request to /proxy/* to the target URL provided in the path.**
- * **Example: /proxy/https://example.com/api/data will proxy to https://example.com/api/data**
+ * This proxies any request to /proxy/* to the target URL provided in the path.
+ * Example: /proxy/https://example.com/api/data will proxy to https://example.com/api/data
  */
 app.use('/proxy', createProxyMiddleware({
-  target: '', // **Target is dynamic based on the request**
+  target: '', // Target is dynamic based on the request
   changeOrigin: true,
   secure: true,
   router: (req) => {
-    // **Extract the target URL from the request path**
-    // **e.g., /proxy/https://example.com/api/data**
+    // Extract the target URL from the request path
+    // e.g., /proxy/https://example.com/api/data
     const targetUrl = req.path.replace(/^\/proxy\//, '');
     return targetUrl;
   },
   onProxyReq: (proxyReq, req, res) => {
-    // **You can add additional headers here if needed**
-    // **For example, to add authentication headers for specific services**
+    // You can add additional headers here if needed
+    // For example, to add authentication headers for specific services
   },
   onError: (err, req, res) => {
     console.error('CORS Proxy error:', err);
     res.status(500).json({ error: 'CORS Proxy encountered an error.' });
   },
-  logLevel: 'debug', // **Change to 'info' or 'error' in production**
+  logLevel: 'debug', // Change to 'info' or 'error' in production
 }));
 
-// **Health Check Endpoint**
+// Health Check Endpoint
 app.get('/', (req, res) => {
   res.send('CORS Proxy Server is running.');
 });
 
-// **Start the Server**
+// Start the Server
 app.listen(PORT, () => {
   console.log(`CORS Proxy Server is running on port ${PORT}`);
 });
