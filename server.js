@@ -11,21 +11,21 @@ const PORT = process.env.PORT || 8080;
 
 // Environment Variables
 const {
-  accessToken,
+  accessToken: initialAccessToken,
   clientId,
   clientSecret,
   refreshToken,
 } = process.env;
 
 // Validate Environment Variables
-if (!accessToken || !clientId || !clientSecret || !refreshToken) {
+if (!initialAccessToken || !clientId || !clientSecret || !refreshToken) {
   console.error('Missing necessary environment variables. Please check Config Vars.');
   process.exit(1);
 }
 
 // CORS Configuration
 app.use(cors({
-  origin: 'https://www.sportdogfood.com', // Replace with your actual Webflow site URL without trailing slash
+  origin: 'https://www.sportdogfood.com', // Replace with your actual Webflow site URL
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -72,7 +72,7 @@ const refreshAccessToken = async () => {
 /**
  * Middleware to handle authentication and token refresh
  */
-let currentAccessToken = accessToken;
+let currentAccessToken = initialAccessToken;
 let tokenExpiration = Date.now() + (3600 * 1000); // Assuming token is valid for 1 hour; adjust based on actual expiration
 
 const isTokenExpired = () => {
@@ -136,14 +136,12 @@ app.use('/proxy', createProxyMiddleware({
   secure: true,
   router: (req) => {
     // Extract the target URL from the request path
-    // e.g., /proxy/https://example.com/api/data
     const targetUrl = req.path.replace(/^\/proxy\//, '');
     console.log(`Proxying to External URL: ${targetUrl}`);
     return targetUrl;
   },
   onProxyReq: (proxyReq, req, res) => {
     // You can add additional headers here if needed
-    // For example, to add authentication headers for specific services
   },
   onError: (err, req, res) => {
     console.error('CORS Proxy error:', err);
