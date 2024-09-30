@@ -25,7 +25,7 @@ if (!initialAccessToken || !clientId || !clientSecret || !refreshToken) {
 
 // CORS Configuration
 app.use(cors({
-  origin: 'https://www.sportdogfood.com', // Replace with your actual Webflow site URL
+  origin: '*', // Allow all origins for testing
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -61,7 +61,7 @@ const refreshAccessToken = async () => {
     }
 
     const data = await response.json();
-    console.log('Access token refreshed successfully.');
+    console.log('Access token refreshed successfully:', data.access_token);
     return data.access_token;
   } catch (error) {
     console.error('Error refreshing access token:', error);
@@ -150,6 +150,18 @@ app.use('/proxy', createProxyMiddleware({
   },
   logLevel: 'debug', // Change to 'info' or 'error' in production
 }));
+
+/**
+ * Route to test token refresh manually
+ */
+app.get('/refresh-token-test', async (req, res) => {
+  try {
+    const newAccessToken = await refreshAccessToken();
+    res.json({ message: 'Token refreshed successfully', accessToken: newAccessToken });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to refresh token' });
+  }
+});
 
 // Health Check Endpoint
 app.get('/', (req, res) => {
