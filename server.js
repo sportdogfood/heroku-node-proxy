@@ -108,10 +108,11 @@ const apiProxy = createProxyMiddleware({
     return rewrittenPath;
   },
   onProxyReq: (proxyReq, req, res) => {
-    // Inject the Authorization header with the access token
+    // Inject all the necessary headers including Authorization and FoxyCart headers
     proxyReq.setHeader('Authorization', `Bearer ${req.accessToken}`);
     proxyReq.setHeader('FOXY-API-VERSION', '1');
-    proxyReq.setHeader('Content-Type', 'application/json');
+    proxyReq.setHeader('client_id', clientId);
+    proxyReq.setHeader('client_secret', clientSecret);
     console.log(`Added Authorization header: Bearer ${req.accessToken}`);
     console.log(`Set FOXY-API-VERSION header: 1`);
   },
