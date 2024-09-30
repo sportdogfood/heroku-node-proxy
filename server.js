@@ -69,34 +69,73 @@ const refreshAccessToken = async () => {
 };
 
 /**
- * Route to test direct GET request to FoxyCart
+ * Middleware to handle authentication and token refresh
  */
-app.get('/direct-api-test', async (req, res) => {
+let currentAccessToken = initialAccessToken;
+let tokenExpiration = Date.now() + (3600 * 1000); // Assuming token is valid for 1 hour; adjust based on actual expiration
+
+const isTokenExpired = () => {
+  return Date.now() >= tokenExpiration;
+};
+
+// Middleware to attach the current access token to the request
+app.use(async (req, res, next) => {
+  if (isTokenExpired()) {
+    try {
+      currentAccessToken = await refreshAccessToken();
+      tokenExpiration = Date.now() + (3600 * 1000); // Reset expiration time; adjust as needed
+      console.log('Access token updated.');
+    } catch (error) {
+      return res.status(500).json({ error: 'Failed to refresh access token.' });
+    }
+  }
+  req.accessToken = currentAccessToken;
+  next();
+});
+
+/**
+ * Dynamic FoxyCart API Handler
+ * Allows client-side to specify the API path and method dynamically
+ */
+app.all('/foxycart/*', async (req, res) => {
+  const { method, body } = req;
+  const foxyCartApiUrl = `https://api.foxycart.com${req.path.replace('/foxycart', '')}`; // Construct the API URL
+
   try {
-    // Refresh token if needed
-    const currentAccessToken = await refreshAccessToken();
-    
-    // Fetch data from FoxyCart API
-    const apiUrl = `https://api.foxycart.com/customers/27268981/default_shipping_address`;
-    const response = await fetch(apiUrl, {
-      method: 'GET',
+    // Make the dynamic request to the FoxyCart API
+    const response = await fetch(foxyCartApiUrl, {
+      method: method.toUpperCase(), // Use the method (GET, POST, PATCH, etc.)
       headers: {
-        'Authorization': `Bearer ${currentAccessToken}`,
+        'Authorization': `Bearer ${req.accessToken}`,
         'FOXY-API-VERSION': '1',
         'client_id': clientId,
-        'client_secret': clientSecret
-      }
+        'client_secret': clientSecret,
+        'Content-Type': 'application/json',
+      },
+      body: method === 'POST' || method === 'PATCH' ? JSON.stringify(body) : null, // Add body if it's POST or PATCH
     });
 
     if (!response.ok) {
-      throw new Error(`GET request failed: ${response.status} ${response.statusText}`);
+      throw new Error(`${method} request failed: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    console.error('Error during direct API request:', error);
-    res.status(500).json({ error: 'Failed to fetch data from FoxyCart API' });
+    console.error('Error during FoxyCart API request:', error);
+    res.status(500).json({ error: `Failed to ${method} data from FoxyCart API` });
+  }
+});
+
+/**
+ * Route to test token refresh manually
+ */
+app.get('/refresh-token-test', async (req, res) => {
+  try {
+    const newAccessToken = await refreshAccessToken();
+    res.json({ message: 'Token refreshed successfully', accessToken: newAccessToken });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to refresh token' });
   }
 });
 
@@ -107,5 +146,5 @@ app.get('/', (req, res) => {
 
 // Start the Server
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`CORS Proxy Server is running on port ${PORT}`);
 });
