@@ -4,6 +4,7 @@ const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const fetch = require('node-fetch');
 const cors = require('cors');
+const morgan = require('morgan');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -28,6 +29,9 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
+// Use morgan for HTTP request logging
+app.use(morgan('combined'));
 
 // Middleware to parse JSON bodies
 app.use(express.json());
@@ -99,13 +103,17 @@ const apiProxy = createProxyMiddleware({
   secure: true,
   pathRewrite: (path, req) => {
     // Remove the /api prefix when forwarding to FoxyCart
-    return path.replace(/^\/api/, '');
+    const rewrittenPath = path.replace(/^\/api/, '');
+    console.log(`Proxying to FoxyCart API: ${rewrittenPath}`);
+    return rewrittenPath;
   },
   onProxyReq: (proxyReq, req, res) => {
     // Inject the Authorization header with the access token
     proxyReq.setHeader('Authorization', `Bearer ${req.accessToken}`);
     proxyReq.setHeader('FOXY-API-VERSION', '1');
     proxyReq.setHeader('Content-Type', 'application/json');
+    console.log(`Added Authorization header: Bearer ${req.accessToken}`);
+    console.log(`Set FOXY-API-VERSION header: 1`);
   },
   onError: (err, req, res) => {
     console.error('API Proxy error:', err);
@@ -130,6 +138,7 @@ app.use('/proxy', createProxyMiddleware({
     // Extract the target URL from the request path
     // e.g., /proxy/https://example.com/api/data
     const targetUrl = req.path.replace(/^\/proxy\//, '');
+    console.log(`Proxying to External URL: ${targetUrl}`);
     return targetUrl;
   },
   onProxyReq: (proxyReq, req, res) => {
