@@ -142,6 +142,7 @@ app.use('/proxy', createProxyMiddleware({
   },
   onProxyReq: (proxyReq, req, res) => {
     // You can add additional headers here if needed
+    // For example, to add authentication headers for specific services
   },
   onError: (err, req, res) => {
     console.error('CORS Proxy error:', err);
