@@ -31,6 +31,7 @@ async function refreshAccessToken() {
   params.append('client_secret', clientSecret);
 
   try {
+    console.log('Attempting to refresh token...');
     const response = await fetch(tokenUrl, {
       method: 'POST',
       headers: {
@@ -52,7 +53,7 @@ async function refreshAccessToken() {
   }
 }
 
-// Refresh token test endpoint
+// Token refresh test endpoint
 app.get('/refresh-token-test', async (req, res) => {
   try {
     const accessToken = await refreshAccessToken();
@@ -62,7 +63,7 @@ app.get('/refresh-token-test', async (req, res) => {
   }
 });
 
-// FoxyCart API proxy middleware to forward requests
+// Proxy Middleware to handle FoxyCart API requests
 app.use('/foxycart', createProxyMiddleware({
   target: 'https://api.foxycart.com',
   changeOrigin: true,
@@ -70,8 +71,7 @@ app.use('/foxycart', createProxyMiddleware({
     '^/foxycart': '', // Strips '/foxycart' prefix before sending the request
   },
   onProxyReq: async (proxyReq, req, res) => {
-    // Ensure token refresh
-    const accessToken = await refreshAccessToken();
+    const accessToken = await refreshAccessToken(); // Ensure token is refreshed
     proxyReq.setHeader('Authorization', `Bearer ${accessToken}`);
     proxyReq.setHeader('FOXY-API-VERSION', '1');
     proxyReq.setHeader('Content-Type', 'application/json');
