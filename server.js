@@ -21,9 +21,9 @@ async function refreshToken() {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type: 'refresh_token',
-      refresh_token: 'XbuTTBW9R6sRHWvKvnYYuJkpAIYnLaZeKHsjAL1D', // Your refresh token
-      client_id: 'client_gsIC67wRNWDFk9UPUjNV',                    // Your client ID
-      client_secret: 'gsGeQmYYlWgk3GPkBLsbmTpq7GSt4lrwHHNi1IQm',    // Your client secret
+      refresh_token: 'XbuTTBW9R6sRHWvKvnYYuJkpAIYnLaZeKHsjAL1D',  // Replace with your refresh token
+      client_id: 'client_gsIC67wRNWDFk9UPUjNV',                      // Replace with your client ID
+      client_secret: 'gsGeQmYYlWgk3GPkBLsbmTpq7GSt4lrwHHNi1IQm',      // Replace with your client secret
     }),
   });
 
@@ -31,7 +31,7 @@ async function refreshToken() {
   return tokenData.access_token;  // Return the new access token
 }
 
-// Proxy route to handle FoxyCart API calls
+// FoxyCart-specific API route with token refresh
 app.all('/foxycart/:endpoint*', async (req, res) => {
   try {
     const accessToken = await refreshToken();  // Refresh token before the request
@@ -45,9 +45,9 @@ app.all('/foxycart/:endpoint*', async (req, res) => {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'FOXY-API-VERSION': '1',
-        'Content-Type': req.get('Content-Type') || 'application/json'
+        'Content-Type': req.get('Content-Type') || 'application/json',
       },
-      body: ['POST', 'PUT'].includes(req.method) ? JSON.stringify(req.body) : undefined
+      body: ['POST', 'PUT'].includes(req.method) ? JSON.stringify(req.body) : undefined,
     });
 
     if (!apiResponse.ok) {
@@ -64,7 +64,7 @@ app.all('/foxycart/:endpoint*', async (req, res) => {
   }
 });
 
-// Generic proxy route for other integrations
+// Generic proxy route for other APIs
 app.all('/proxy/*', async (req, res) => {
   try {
     const apiUrl = req.params[0];  // Extract the full URL to proxy
@@ -75,9 +75,9 @@ app.all('/proxy/*', async (req, res) => {
       headers: {
         ...req.headers,  // Forward the original headers (but not Host, to avoid conflicts)
         'Host': undefined,  // Remove the Host header
-        'Origin': undefined // Remove Origin header to prevent CORS issues
+        'Origin': undefined,  // Remove Origin header to prevent CORS issues
       },
-      body: ['POST', 'PUT'].includes(req.method) ? JSON.stringify(req.body) : undefined
+      body: ['POST', 'PUT'].includes(req.method) ? JSON.stringify(req.body) : undefined,
     });
 
     if (!apiResponse.ok) {
