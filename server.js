@@ -102,7 +102,6 @@ async function refreshZohoToken() {
   }
 }
 
-
 // Zoho CRM-specific API route with token refresh
 app.all('/zoho/:endpoint*', async (req, res) => {
   try {
@@ -135,7 +134,6 @@ app.all('/zoho/:endpoint*', async (req, res) => {
     res.status(500).json({ error: 'Error fetching data from Zoho CRM API' });
   }
 });
-
 
 // ------------------------------------------------------
 //  Generic Proxy Route for Other APIs
