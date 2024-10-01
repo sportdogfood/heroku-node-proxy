@@ -1,160 +1,54 @@
 const express = require('express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
-const cors = require('cors');
-const morgan = require('morgan');
 const fetch = require('node-fetch');
-
 const app = express();
-const PORT = process.env.PORT || 8080;
 
-// Environment Variables for FoxyCart
-const {
-  clientId,
-  clientSecret,
-  refreshToken,
-} = process.env;
+// Function to refresh the token
+async function refreshToken() {
+  const refreshResponse = await fetch('https://api.foxycart.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: 'XbuTTBW9R6sRHWvKvnYYuJkpAIYnLaZeKHsjAL1D', // Your refresh token
+      client_id: 'client_gsIC67wRNWDFk9UPUjNV',                    // Your client ID
+      client_secret: 'gsGeQmYYlWgk3GPkBLsbmTpq7GSt4lrwHHNi1IQm',    // Your client secret
+    }),
+  });
 
-// Validate Environment Variables
-if (!clientId || !clientSecret || !refreshToken) {
-  console.error('Missing necessary environment variables. Please check Config Vars.');
-  process.exit(1);
+  const tokenData = await refreshResponse.json();
+  return tokenData.access_token;  // Return the new access token
 }
 
-// CORS Configuration to allow all origins for testing (adjust this for production)
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'client_id', 
-    'client_secret', 
-    'FOXY-API-VERSION', 
-    'accept-version', 
-    'refresh_token', // Add refresh_token to allowed headers
-  ],
-  exposedHeaders: ['Content-Type', 'Authorization'],
-}));
+// Middleware to add CORS headers to the response
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');  // Allow requests from any origin
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');  // Allow methods
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');  // Allow these headers
+  next();
+});
 
-// Use morgan for HTTP request logging
-app.use(morgan('combined'));
-
-// Middleware to parse JSON bodies
-app.use(express.json());
-
-/**
- * Function to refresh FoxyCart access token
- */
-const refreshAccessToken = async () => {
-  const tokenUrl = `https://api.foxycart.com/token`;
-  const params = new URLSearchParams();
-  params.append('grant_type', 'refresh_token');
-  params.append('refresh_token', refreshToken);
-  params.append('client_id', clientId);
-  params.append('client_secret', clientSecret);
-
+// Endpoint to fetch default shipping address
+app.get('/customers/:id/default_shipping_address', async (req, res) => {
   try {
-    const response = await fetch(tokenUrl, {
-      method: 'POST',
+    const accessToken = await refreshToken();  // Refresh token before the request
+
+    const customerId = req.params.id;
+    const apiResponse = await fetch(`https://api.foxycart.com/customers/${customerId}/default_shipping_address`, {
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Bearer ${accessToken}`,  // Include the access token
+        'FOXY-API-VERSION': '1',
       },
-      body: params,
     });
 
-    if (!response.ok) {
-      throw new Error(`Token refresh failed: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    console.log('Access token refreshed:', data.access_token);
-    return data.access_token;
+    const data = await apiResponse.json();  // Parse the response as JSON
+    res.json(data);  // Send the data back to the client
   } catch (error) {
-    console.error('Error refreshing token:', error);
-    throw error;
-  }
-};
-
-/**
- * Route to test token refresh manually
- * Returns accessToken, client_id, client_secret, and refresh_token
- */
-app.get('/refresh-token-test', async (req, res) => {
-  try {
-    const newAccessToken = await refreshAccessToken();
-    res.json({
-      message: 'Token refreshed successfully',
-      accessToken: newAccessToken,
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to refresh token' });
+    res.status(500).json({ error: 'Error fetching data from FoxyCart API' });  // Handle errors
   }
 });
 
-/**
- * General Proxy Middleware (for non-FoxyCart services)
- */
-app.use('/proxy', createProxyMiddleware({
-  target: '',  // Target is dynamically set
-  changeOrigin: true,
-  secure: true,
-  router: (req) => {
-    const targetUrl = req.path.replace(/^\/proxy\//, '');
-    console.log(`Proxying to: ${targetUrl}`);
-    return targetUrl;
-  },
-  onError: (err, req, res) => {
-    console.error('Proxy error:', err);
-    res.status(500).json({ error: 'Proxy encountered an error.' });
-  },
-  logLevel: 'debug',  // Keep at debug level for troubleshooting
-}));
-
-/**
- * FoxyCart API Proxy Middleware
- */
-app.use('/foxycart', createProxyMiddleware({
-  target: 'https://api.foxycart.com',
-  changeOrigin: true,
-  secure: true,
-  pathRewrite: {
-    '^/foxycart': '', // Remove '/foxycart' prefix before sending the request to FoxyCart
-  },
-  onProxyReq: async (proxyReq, req, res) => {
-    try {
-      const accessToken = await refreshAccessToken(); // Ensure token is refreshed
-      proxyReq.setHeader('Authorization', `Bearer ${accessToken}`);
-      proxyReq.setHeader('FOXY-API-VERSION', '1');
-      proxyReq.setHeader('Content-Type', 'application/json');
-    } catch (error) {
-      console.error('Error setting FoxyCart headers:', error);
-      res.status(500).json({ error: 'Failed to refresh access token for FoxyCart.' });
-    }
-  },
-  onProxyRes: (proxyRes, req, res) => {
-    // Add CORS headers to the proxied response
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, FOXY-API-VERSION, accept-version, refresh_token'); // Added refresh_token
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  },
-  onError: (err, req, res) => {
-    console.error('FoxyCart API Proxy error:', err);
-    res.status(500).json({ error: 'Failed to process request through FoxyCart proxy.' });
-  },
-  logLevel: 'debug' // Keep log level at debug for troubleshooting
-}));
-
-/**
- * Health Check Endpoint
- */
-app.get('/', (req, res) => {
-  res.send('CORS Proxy Server is running.');
-});
-
-// Start the Server
-app.listen(PORT, () => {
-  console.log(`CORS Proxy Server is running on port ${PORT}`);
+// Set up the server to listen on the correct port
+app.listen(process.env.PORT || 3000, () => {
+  console.log('Proxy server running on port 3000');
 });
