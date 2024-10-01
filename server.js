@@ -2,6 +2,7 @@ const express = require('express');
 const fetch = require('node-fetch');
 const app = express();
 
+// Storing Zoho tokens
 let zohoAccessToken = '1000.94bf57a9a6ac9ce3798fff8b9a3e9691.6c07a030a6fdd9009e916b8719f50b10';
 let zohoRefreshToken = '1000.e43807d9c5e727bccf0e3e984a88ce2e.1e2cd45ab2af3b8752abfc1e5c00c35b';
 
@@ -141,36 +142,33 @@ app.all('/zoho/:endpoint*', async (req, res) => {
 });
 
 // ------------------------------------------------------
-//  Generic Proxy Route for Other APIs
+//  Webhook Proxy Route for Zoho Flow
 // ------------------------------------------------------
 
-// Generic proxy route for other APIs
-app.all('/proxy/*', async (req, res) => {
+app.post('/webhook', async (req, res) => {
   try {
-    const apiUrl = req.params[0];  // Extract the full URL to proxy
-    console.log(`Forwarding request to: ${apiUrl}`);  // Log the URL being requested
-
-    const apiResponse = await fetch(apiUrl, {
-      method: req.method,
+    const webhookUrl = 'https://flow.zoho.com/681603876/flow/webhook/incoming?zapikey=1001.f200c297788af43ff53e2ad8eb84e06f.19c02d61915242576e3b5be4c21d300f&isdebug=false';
+    
+    // Forward the webhook request
+    const apiResponse = await fetch(webhookUrl, {
+      method: 'POST',
       headers: {
-        ...req.headers,  // Forward the original headers (but not Host, to avoid conflicts)
-        'Host': undefined,  // Remove the Host header
-        'Origin': undefined,  // Remove Origin header to prevent CORS issues
+        'Content-Type': 'application/json',
       },
-      body: ['POST', 'PUT'].includes(req.method) ? JSON.stringify(req.body) : undefined,
+      body: JSON.stringify(req.body),
     });
 
     if (!apiResponse.ok) {
-      console.log(`API response status: ${apiResponse.status}`);
-      throw new Error(`API request failed with status ${apiResponse.status}`);
+      console.log(`Webhook response status: ${apiResponse.status}`);
+      throw new Error(`Webhook request failed with status ${apiResponse.status}`);
     }
 
     const data = await apiResponse.json();
-    console.log("Generic API response data:", data);
-    res.json(data);  // Send data back to the client
+    console.log("Webhook response data:", data);
+    res.json(data);  // Return webhook response to the client
   } catch (error) {
-    console.error("Error in generic proxy route:", error);
-    res.status(500).json({ error: 'Error fetching data from external API' });
+    console.error("Error in webhook route:", error);
+    res.status(500).json({ error: 'Error sending webhook' });
   }
 });
 
