@@ -86,10 +86,9 @@ async function refreshZohoToken() {
       }),
     });
 
-    // Parse the response as JSON
     const tokenData = await refreshResponse.json();
-
-    // Check if the access token is received
+    
+    // Check if the access token was successfully received
     if (tokenData.access_token) {
       console.log('Zoho access token refreshed:', tokenData.access_token);
       return tokenData.access_token;  // Return the new access token
@@ -99,7 +98,7 @@ async function refreshZohoToken() {
     }
   } catch (error) {
     console.error('Error refreshing Zoho access token:', error);
-    throw error;  // Re-throw the error for the caller to handle
+    throw error;
   }
 }
 
