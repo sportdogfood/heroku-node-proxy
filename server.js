@@ -29,9 +29,9 @@ async function refreshFoxyToken() {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type: 'refresh_token',
-      refresh_token: 'XbuTTBW9R6sRHWvKvnYYuJkpAIYnLaZeKHsjAL1D',  // Replace with your refresh token
-      client_id: 'client_gsIC67wRNWDFk9UPUjNV',                      // Replace with your client ID
-      client_secret: 'gsGeQmYYlWgk3GPkBLsbmTpq7GSt4lrwHHNi1IQm',      // Replace with your client secret
+      refresh_token: '1000.d4af8517a8417c1e2c7a6011cbe373de.be05fe8c3ae49fa7dbb65f22c8bb00dd',  // Replace with your refresh token
+      client_id: '1000.3VZRY3CC9QGZBXA8IZZ6TWZTZV1H6H',                      // Replace with your client ID
+      client_secret: '48dcd0b587246976e9dfcfcc54b10bfb211686cbe4',      // Replace with your client secret
     }),
   });
 
