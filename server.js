@@ -2,7 +2,19 @@ const express = require('express');
 const fetch = require('node-fetch');
 const app = express();
 
-// Function to refresh the access token
+// Middleware to parse JSON bodies
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Middleware to add CORS headers
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  next();
+});
+
+// Function to refresh the FoxyCart access token
 async function refreshToken() {
   const refreshResponse = await fetch('https://api.foxycart.com/token', {
     method: 'POST',
@@ -19,29 +31,23 @@ async function refreshToken() {
   return tokenData.access_token;  // Return the new access token
 }
 
-// Middleware to add CORS headers
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  next();
-});
-
-// Proxy route for customer details
-app.get('/customers/:id', async (req, res) => {
+// Proxy route to handle FoxyCart API calls
+app.all('/foxycart/:endpoint*', async (req, res) => {
   try {
     const accessToken = await refreshToken();  // Refresh token before the request
-    const customerId = req.params.id;
-    const apiUrl = `https://api.foxycart.com/customers/${customerId}`;  // Base URL for customer details
+    const endpoint = req.params.endpoint + (req.params[0] || '');  // Support dynamic subpaths
+    const apiUrl = `https://api.foxycart.com/${endpoint}`;
 
     console.log(`Forwarding request to: ${apiUrl}`);  // Log the URL being requested
 
     const apiResponse = await fetch(apiUrl, {
-      method: 'GET',
+      method: req.method,
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'FOXY-API-VERSION': '1',
+        'Content-Type': req.get('Content-Type') || 'application/json'
       },
+      body: ['POST', 'PUT'].includes(req.method) ? JSON.stringify(req.body) : undefined
     });
 
     if (!apiResponse.ok) {
@@ -53,27 +59,25 @@ app.get('/customers/:id', async (req, res) => {
     console.log("API response data:", data);
     res.json(data);  // Send data back to the client
   } catch (error) {
-    console.error("Error fetching customer details:", error);
-    res.status(500).json({ error: 'Error fetching customer details from FoxyCart API' });
+    console.error("Error in FoxyCart API proxy route:", error);
+    res.status(500).json({ error: 'Error fetching data from FoxyCart API' });
   }
 });
 
-// Proxy route for customer shipping and billing addresses
-app.get('/customers/:id/:endpoint', async (req, res) => {
+// Generic proxy route for other integrations
+app.all('/proxy/*', async (req, res) => {
   try {
-    const accessToken = await refreshToken();  // Refresh token before the request
-    const customerId = req.params.id;
-    const endpoint = req.params.endpoint;  // Dynamic endpoint (e.g., default_shipping_address)
-    const apiUrl = `https://api.foxycart.com/customers/${customerId}/${endpoint}`;
-
+    const apiUrl = req.params[0];  // Extract the full URL to proxy
     console.log(`Forwarding request to: ${apiUrl}`);  // Log the URL being requested
 
     const apiResponse = await fetch(apiUrl, {
-      method: 'GET',
+      method: req.method,
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'FOXY-API-VERSION': '1',
+        ...req.headers,  // Forward the original headers (but not Host, to avoid conflicts)
+        'Host': undefined,  // Remove the Host header
+        'Origin': undefined // Remove Origin header to prevent CORS issues
       },
+      body: ['POST', 'PUT'].includes(req.method) ? JSON.stringify(req.body) : undefined
     });
 
     if (!apiResponse.ok) {
@@ -85,39 +89,8 @@ app.get('/customers/:id/:endpoint', async (req, res) => {
     console.log("API response data:", data);
     res.json(data);  // Send data back to the client
   } catch (error) {
-    console.error("Error in customer address proxy route:", error);
-    res.status(500).json({ error: 'Error fetching customer address data from FoxyCart API' });
-  }
-});
-
-// Proxy route for store details
-app.get('/stores/:id', async (req, res) => {
-  try {
-    const accessToken = await refreshToken();  // Refresh token before the request
-    const storeId = req.params.id;
-    const apiUrl = `https://api.foxycart.com/stores/${storeId}`;
-
-    console.log(`Forwarding request to: ${apiUrl}`);  // Log the URL being requested
-
-    const apiResponse = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'FOXY-API-VERSION': '1',
-      },
-    });
-
-    if (!apiResponse.ok) {
-      console.log(`API response status: ${apiResponse.status}`);
-      throw new Error(`API request failed with status ${apiResponse.status}`);
-    }
-
-    const data = await apiResponse.json();
-    console.log("API response data:", data);
-    res.json(data);  // Send data back to the client
-  } catch (error) {
-    console.error("Error in store proxy route:", error);
-    res.status(500).json({ error: 'Error fetching store details from FoxyCart API' });
+    console.error("Error in generic proxy route:", error);
+    res.status(500).json({ error: 'Error fetching data from external API' });
   }
 });
 
