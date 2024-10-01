@@ -2,6 +2,9 @@ const express = require('express');
 const fetch = require('node-fetch');
 const app = express();
 
+let zohoAccessToken = '1000.94bf57a9a6ac9ce3798fff8b9a3e9691.6c07a030a6fdd9009e916b8719f50b10';
+let zohoRefreshToken = '1000.e43807d9c5e727bccf0e3e984a88ce2e.1e2cd45ab2af3b8752abfc1e5c00c35b';
+
 // Middleware to parse JSON bodies
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -80,7 +83,7 @@ async function refreshZohoToken() {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         grant_type: 'refresh_token',
-        refresh_token: '1000.4f7761b990e65f8b077a2a98d9489316.da36bf3213cfd20f4e7c92fb1b243148',  // Your Zoho refresh token
+        refresh_token: zohoRefreshToken,  // Using stored refresh token
         client_id: '1000.3VZRY3CC9QGZBXA8IZZ6TWZTZV1H6H',  // Your Zoho client ID
         client_secret: '48dcd0b587246976e9dfcfcc54b10bfb211686cbe4',  // Your Zoho client secret
       }),
@@ -91,7 +94,8 @@ async function refreshZohoToken() {
     // Check if the access token was successfully received
     if (tokenData.access_token) {
       console.log('Zoho access token refreshed:', tokenData.access_token);
-      return tokenData.access_token;  // Return the new access token
+      zohoAccessToken = tokenData.access_token;  // Update the access token in memory
+      return zohoAccessToken;
     } else {
       console.error('Error refreshing Zoho token:', tokenData);
       throw new Error('Failed to refresh Zoho access token');
@@ -102,10 +106,11 @@ async function refreshZohoToken() {
   }
 }
 
+
 // Zoho CRM-specific API route with token refresh
 app.all('/zoho/:endpoint*', async (req, res) => {
   try {
-    const accessToken = await refreshZohoToken();  // Refresh Zoho token before the request
+    const accessToken = zohoAccessToken || await refreshZohoToken();  // Use existing token or refresh if needed
     const endpoint = req.params.endpoint + (req.params[0] || '');  // Support dynamic subpaths
     const apiUrl = `https://www.zohoapis.com/crm/v2/${endpoint}`;  // Zoho CRM API base URL
 
