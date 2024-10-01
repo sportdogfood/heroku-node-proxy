@@ -96,7 +96,7 @@ app.all('/zoho/:endpoint*', async (req, res) => {
     const endpoint = req.params.endpoint + (req.params[0] || '');  // Support dynamic subpaths
     const apiUrl = `https://www.zohoapis.com/crm/v2/${endpoint}`;  // Zoho CRM API base URL
 
-    console.log(`Forwarding request to: ${apiUrl}`);  // Log the URL being requested
+    console.log(`Forwarding request to: ${apiUrl}`);  // Log the full API URL
 
     const apiResponse = await fetch(apiUrl, {
       method: req.method,
@@ -108,7 +108,8 @@ app.all('/zoho/:endpoint*', async (req, res) => {
     });
 
     if (!apiResponse.ok) {
-      console.log(`API response status: ${apiResponse.status}`);
+      const errorText = await apiResponse.text();
+      console.log(`Zoho API response status: ${apiResponse.status}, body: ${errorText}`);
       throw new Error(`API request failed with status ${apiResponse.status}`);
     }
 
@@ -120,6 +121,7 @@ app.all('/zoho/:endpoint*', async (req, res) => {
     res.status(500).json({ error: 'Error fetching data from Zoho CRM API' });
   }
 });
+
 
 // ------------------------------------------------------
 //  Generic Proxy Route for Other APIs
