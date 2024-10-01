@@ -74,20 +74,35 @@ app.all('/foxycart/:endpoint*', async (req, res) => {
 
 // Function to refresh the Zoho CRM access token
 async function refreshZohoToken() {
-  const refreshResponse = await fetch('https://accounts.zoho.com/oauth/v2/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: '1000.0e561ca8a742d446d134a6436e2d04e9.6862bd1eb6787111fc89a044c35b9946',  // Replace with your Zoho refresh token
-      client_id: '1000.3VZRY3CC9QGZBXA8IZZ6TWZTZV1H6H',           // Replace with your Zoho client ID
-      client_secret: '48dcd0b587246976e9dfcfcc54b10bfb211686cbe4',   // Replace with your Zoho client secret
-    }),
-  });
+  try {
+    const refreshResponse = await fetch('https://accounts.zoho.com/oauth/v2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: '1000.0e561ca8a742d446d134a6436e2d04e9.6862bd1eb6787111fc89a044c35b9946',  // Your Zoho refresh token
+        client_id: '1000.3VZRY3CC9QGZBXA8IZZ6TWZTZV1H6H',  // Your Zoho client ID
+        client_secret: '48dcd0b587246976e9dfcfcc54b10bfb211686cbe4',  // Your Zoho client secret
+      }),
+    });
 
-  const tokenData = await refreshResponse.json();
-  return tokenData.access_token;  // Return the new Zoho access token
+    // Parse the response as JSON
+    const tokenData = await refreshResponse.json();
+
+    // Check if the access token is received
+    if (tokenData.access_token) {
+      console.log('Zoho access token refreshed:', tokenData.access_token);
+      return tokenData.access_token;  // Return the new access token
+    } else {
+      console.error('Error refreshing Zoho token:', tokenData);
+      throw new Error('Failed to refresh Zoho access token');
+    }
+  } catch (error) {
+    console.error('Error refreshing Zoho access token:', error);
+    throw error;  // Re-throw the error for the caller to handle
+  }
 }
+
 
 // Zoho CRM-specific API route with token refresh
 app.all('/zoho/:endpoint*', async (req, res) => {
