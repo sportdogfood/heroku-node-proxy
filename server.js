@@ -31,12 +31,84 @@ async function refreshToken() {
   return tokenData.access_token;  // Return the new access token
 }
 
-// FoxyCart-specific API route with token refresh
+// Helper function to build the query string
+function buildQueryString(params) {
+  const query = new URLSearchParams(params).toString();
+  return query ? `?${query}` : '';
+}
+
+// Route for FoxyCart Transactions
+app.get('/foxycart/stores/:store_id/transactions', async (req, res) => {
+  try {
+    const accessToken = await refreshToken();  // Refresh token before the request
+    const storeId = req.params.store_id;
+    const customerId = req.query.customer_id;  // Use query param to get customer ID
+    const query = buildQueryString(req.query);  // Build query string from request parameters
+
+    const apiUrl = `https://api.foxycart.com/stores/${storeId}/transactions${query}`;
+    console.log(`Forwarding request to: ${apiUrl}`);
+
+    const apiResponse = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'FOXY-API-VERSION': '1',
+        'Content-Type': 'application/json',
+      }
+    });
+
+    if (!apiResponse.ok) {
+      console.log(`API response status: ${apiResponse.status}`);
+      throw new Error(`API request failed with status ${apiResponse.status}`);
+    }
+
+    const data = await apiResponse.json();
+    res.json(data);
+  } catch (error) {
+    console.error("Error in FoxyCart Transactions route:", error);
+    res.status(500).json({ error: 'Error fetching transactions from FoxyCart API' });
+  }
+});
+
+// Route for FoxyCart Subscriptions
+app.get('/foxycart/stores/:store_id/subscriptions', async (req, res) => {
+  try {
+    const accessToken = await refreshToken();  // Refresh token before the request
+    const storeId = req.params.store_id;
+    const query = buildQueryString(req.query);  // Build query string from request parameters
+
+    const apiUrl = `https://api.foxycart.com/stores/${storeId}/subscriptions${query}`;
+    console.log(`Forwarding request to: ${apiUrl}`);
+
+    const apiResponse = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'FOXY-API-VERSION': '1',
+        'Content-Type': 'application/json',
+      }
+    });
+
+    if (!apiResponse.ok) {
+      console.log(`API response status: ${apiResponse.status}`);
+      throw new Error(`API request failed with status ${apiResponse.status}`);
+    }
+
+    const data = await apiResponse.json();
+    res.json(data);
+  } catch (error) {
+    console.error("Error in FoxyCart Subscriptions route:", error);
+    res.status(500).json({ error: 'Error fetching subscriptions from FoxyCart API' });
+  }
+});
+
+// Generic FoxyCart API route for dynamic endpoints
 app.all('/foxycart/:endpoint*', async (req, res) => {
   try {
     const accessToken = await refreshToken();  // Refresh token before the request
     const endpoint = req.params.endpoint + (req.params[0] || '');  // Support dynamic subpaths
-    const apiUrl = `https://api.foxycart.com/${endpoint}`;
+    const query = buildQueryString(req.query);  // Build query string from request parameters
+    const apiUrl = `https://api.foxycart.com/${endpoint}${query}`;
 
     console.log(`Forwarding request to: ${apiUrl}`);  // Log the URL being requested
 
@@ -61,36 +133,6 @@ app.all('/foxycart/:endpoint*', async (req, res) => {
   } catch (error) {
     console.error("Error in FoxyCart API proxy route:", error);
     res.status(500).json({ error: 'Error fetching data from FoxyCart API' });
-  }
-});
-
-// Generic proxy route for other APIs
-app.all('/proxy/*', async (req, res) => {
-  try {
-    const apiUrl = req.params[0];  // Extract the full URL to proxy
-    console.log(`Forwarding request to: ${apiUrl}`);  // Log the URL being requested
-
-    const apiResponse = await fetch(apiUrl, {
-      method: req.method,
-      headers: {
-        ...req.headers,  // Forward the original headers (but not Host, to avoid conflicts)
-        'Host': undefined,  // Remove the Host header
-        'Origin': undefined,  // Remove Origin header to prevent CORS issues
-      },
-      body: ['POST', 'PUT'].includes(req.method) ? JSON.stringify(req.body) : undefined,
-    });
-
-    if (!apiResponse.ok) {
-      console.log(`API response status: ${apiResponse.status}`);
-      throw new Error(`API request failed with status ${apiResponse.status}`);
-    }
-
-    const data = await apiResponse.json();
-    console.log("API response data:", data);
-    res.json(data);  // Send data back to the client
-  } catch (error) {
-    console.error("Error in generic proxy route:", error);
-    res.status(500).json({ error: 'Error fetching data from external API' });
   }
 });
 
