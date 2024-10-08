@@ -37,16 +37,12 @@ function buildQueryString(params) {
   return query ? `?${query}` : '';
 }
 
-// Route for FoxyCart Transactions
-app.get('/foxycart/stores/:store_id/transactions', async (req, res) => {
+// Route for fetching customer attributes
+app.get('/foxycart/customers/:customerId/attributes', async (req, res) => {
   try {
-    const accessToken = await refreshToken();  // Refresh token before the request
-    const storeId = req.params.store_id;
-    const customerId = req.query.customer_id;  // Use query param to get customer ID
-    const query = buildQueryString(req.query);  // Build query string from request parameters
-
-    const apiUrl = `https://api.foxycart.com/stores/${storeId}/transactions${query}`;
-    console.log(`Forwarding request to: ${apiUrl}`);
+    const accessToken = await refreshToken();
+    const { customerId } = req.params;
+    const apiUrl = `https://api.foxycart.com/customers/${customerId}/attributes`;
 
     const apiResponse = await fetch(apiUrl, {
       method: 'GET',
@@ -58,27 +54,23 @@ app.get('/foxycart/stores/:store_id/transactions', async (req, res) => {
     });
 
     if (!apiResponse.ok) {
-      console.log(`API response status: ${apiResponse.status}`);
       throw new Error(`API request failed with status ${apiResponse.status}`);
     }
 
     const data = await apiResponse.json();
     res.json(data);
   } catch (error) {
-    console.error("Error in FoxyCart Transactions route:", error);
-    res.status(500).json({ error: 'Error fetching transactions from FoxyCart API' });
+    console.error("Error fetching customer attributes:", error);
+    res.status(500).json({ error: 'Error fetching customer attributes from FoxyCart API' });
   }
 });
 
-// Route for FoxyCart Subscriptions
-app.get('/foxycart/stores/:store_id/subscriptions', async (req, res) => {
+// Route for fetching a specific customer attribute
+app.get('/foxycart/customer_attributes/:thisattributeId', async (req, res) => {
   try {
-    const accessToken = await refreshToken();  // Refresh token before the request
-    const storeId = req.params.store_id;
-    const query = buildQueryString(req.query);  // Build query string from request parameters
-
-    const apiUrl = `https://api.foxycart.com/stores/${storeId}/subscriptions${query}`;
-    console.log(`Forwarding request to: ${apiUrl}`);
+    const accessToken = await refreshToken();
+    const { thisattributeId } = req.params;
+    const apiUrl = `https://api.foxycart.com/customer_attributes/${thisattributeId}`;
 
     const apiResponse = await fetch(apiUrl, {
       method: 'GET',
@@ -90,49 +82,155 @@ app.get('/foxycart/stores/:store_id/subscriptions', async (req, res) => {
     });
 
     if (!apiResponse.ok) {
-      console.log(`API response status: ${apiResponse.status}`);
       throw new Error(`API request failed with status ${apiResponse.status}`);
     }
 
     const data = await apiResponse.json();
     res.json(data);
   } catch (error) {
-    console.error("Error in FoxyCart Subscriptions route:", error);
-    res.status(500).json({ error: 'Error fetching subscriptions from FoxyCart API' });
+    console.error("Error fetching customer attribute:", error);
+    res.status(500).json({ error: 'Error fetching customer attribute from FoxyCart API' });
   }
 });
 
-// Generic FoxyCart API route for dynamic endpoints
-app.all('/foxycart/:endpoint*', async (req, res) => {
+// Route for fetching customer addresses
+app.get('/foxycart/customers/:customerId/addresses', async (req, res) => {
   try {
-    const accessToken = await refreshToken();  // Refresh token before the request
-    const endpoint = req.params.endpoint + (req.params[0] || '');  // Support dynamic subpaths
-    const query = buildQueryString(req.query);  // Build query string from request parameters
-    const apiUrl = `https://api.foxycart.com/${endpoint}${query}`;
-
-    console.log(`Forwarding request to: ${apiUrl}`);  // Log the URL being requested
+    const accessToken = await refreshToken();
+    const { customerId } = req.params;
+    const apiUrl = `https://api.foxycart.com/customers/${customerId}/addresses`;
 
     const apiResponse = await fetch(apiUrl, {
-      method: req.method,
+      method: 'GET',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'FOXY-API-VERSION': '1',
-        'Content-Type': req.get('Content-Type') || 'application/json',
-      },
-      body: ['POST', 'PUT'].includes(req.method) ? JSON.stringify(req.body) : undefined,
+        'Content-Type': 'application/json',
+      }
     });
 
     if (!apiResponse.ok) {
-      console.log(`API response status: ${apiResponse.status}`);
       throw new Error(`API request failed with status ${apiResponse.status}`);
     }
 
     const data = await apiResponse.json();
-    console.log("API response data:", data);
-    res.json(data);  // Send data back to the client
+    res.json(data);
   } catch (error) {
-    console.error("Error in FoxyCart API proxy route:", error);
-    res.status(500).json({ error: 'Error fetching data from FoxyCart API' });
+    console.error("Error fetching customer addresses:", error);
+    res.status(500).json({ error: 'Error fetching customer addresses from FoxyCart API' });
+  }
+});
+
+// Route for default billing address
+app.get('/foxycart/customers/:customerId/default_billing_address', async (req, res) => {
+  try {
+    const accessToken = await refreshToken();
+    const { customerId } = req.params;
+    const apiUrl = `https://api.foxycart.com/customers/${customerId}/default_billing_address`;
+
+    const apiResponse = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'FOXY-API-VERSION': '1',
+        'Content-Type': 'application/json',
+      }
+    });
+
+    if (!apiResponse.ok) {
+      throw new Error(`API request failed with status ${apiResponse.status}`);
+    }
+
+    const data = await apiResponse.json();
+    res.json(data);
+  } catch (error) {
+    console.error("Error fetching default billing address:", error);
+    res.status(500).json({ error: 'Error fetching default billing address from FoxyCart API' });
+  }
+});
+
+// Route for default payment method
+app.get('/foxycart/customers/:customerId/default_payment_method', async (req, res) => {
+  try {
+    const accessToken = await refreshToken();
+    const { customerId } = req.params;
+    const apiUrl = `https://api.foxycart.com/customers/${customerId}/default_payment_method`;
+
+    const apiResponse = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'FOXY-API-VERSION': '1',
+        'Content-Type': 'application/json',
+      }
+    });
+
+    if (!apiResponse.ok) {
+      throw new Error(`API request failed with status ${apiResponse.status}`);
+    }
+
+    const data = await apiResponse.json();
+    res.json(data);
+  } catch (error) {
+    console.error("Error fetching default payment method:", error);
+    res.status(500).json({ error: 'Error fetching default payment method from FoxyCart API' });
+  }
+});
+
+// Route for default shipping address
+app.get('/foxycart/customers/:customerId/default_shipping_address', async (req, res) => {
+  try {
+    const accessToken = await refreshToken();
+    const { customerId } = req.params;
+    const apiUrl = `https://api.foxycart.com/customers/${customerId}/default_shipping_address`;
+
+    const apiResponse = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'FOXY-API-VERSION': '1',
+        'Content-Type': 'application/json',
+      }
+    });
+
+    if (!apiResponse.ok) {
+      throw new Error(`API request failed with status ${apiResponse.status}`);
+    }
+
+    const data = await apiResponse.json();
+    res.json(data);
+  } catch (error) {
+    console.error("Error fetching default shipping address:", error);
+    res.status(500).json({ error: 'Error fetching default shipping address from FoxyCart API' });
+  }
+});
+
+// Route for cart requests with additional query parameters
+app.get('/foxycart/carts/:customerId', async (req, res) => {
+  try {
+    const accessToken = await refreshToken();
+    const { customerId } = req.params;
+    const query = buildQueryString(req.query);  // Build query string from request parameters
+    const apiUrl = `https://api.foxycart.com/carts/${customerId}${query}`;
+
+    const apiResponse = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'FOXY-API-VERSION': '1',
+        'Content-Type': 'application/json',
+      }
+    });
+
+    if (!apiResponse.ok) {
+      throw new Error(`API request failed with status ${apiResponse.status}`);
+    }
+
+    const data = await apiResponse.json();
+    res.json(data);
+  } catch (error) {
+    console.error("Error fetching cart data:", error);
+    res.status(500).json({ error: 'Error fetching cart data from FoxyCart API' });
   }
 });
 
