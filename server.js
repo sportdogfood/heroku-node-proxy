@@ -1,4 +1,3 @@
-// Server-Side Script (server.js on Heroku)
 const express = require('express');
 const fetch = require('node-fetch');
 const app = express();
@@ -27,6 +26,11 @@ async function refreshToken() {
       client_secret: process.env.FOXY_CLIENT_SECRET,
     }),
   });
+
+  if (!refreshResponse.ok) {
+    const errorText = await refreshResponse.text();
+    throw new Error(`Token refresh failed: ${refreshResponse.status} - ${errorText}`);
+  }
 
   const tokenData = await refreshResponse.json();
   return tokenData.access_token;  // Return the new access token
@@ -58,9 +62,16 @@ async function fetchFromFoxyCart(apiUrl, accessToken) {
 // Generic route handler for customer-related data
 app.get('/foxycart/*', async (req, res) => {
   try {
+    // Refresh the token before making any requests to FoxyCart
     const accessToken = await refreshToken();
+    
+    // Build the API URL using the request path, removing '/foxycart'
     const apiUrl = `https://api.foxycart.com${req.path.replace('/foxycart', '')}${buildQueryString(req.query)}`;
+    
+    // Fetch data from the FoxyCart API
     const data = await fetchFromFoxyCart(apiUrl, accessToken);
+    
+    // Respond with the fetched data
     res.json(data);
   } catch (error) {
     console.error(`Error fetching data for ${req.path}:`, error);
