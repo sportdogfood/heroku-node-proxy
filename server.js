@@ -37,6 +37,35 @@ function buildQueryString(params) {
   return query ? `?${query}` : '';
 }
 
+// Route for fetching customer details
+app.get('/foxycart/customers/:customerId', async (req, res) => {
+  try {
+    const accessToken = await refreshToken();
+    const { customerId } = req.params;
+    const apiUrl = `https://api.foxycart.com/customers/${customerId}`;
+
+    const apiResponse = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'FOXY-API-VERSION': '1',
+        'Content-Type': 'application/json',
+      }
+    });
+
+    if (!apiResponse.ok) {
+      const errorText = await apiResponse.text();
+      throw new Error(`API request failed with status ${apiResponse.status}: ${errorText}`);
+    }
+
+    const data = await apiResponse.json();
+    res.json(data);
+  } catch (error) {
+    console.error("Error fetching customer details:", error);
+    res.status(500).json({ error: 'Error fetching customer details from FoxyCart API' });
+  }
+});
+
 // Route for fetching customer attributes
 app.get('/foxycart/customers/:customerId/attributes', async (req, res) => {
   try {
