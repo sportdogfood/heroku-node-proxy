@@ -1,3 +1,4 @@
+// Server-Side Script (server.js on Heroku)
 const express = require('express');
 const fetch = require('node-fetch');
 const app = express();
@@ -21,9 +22,9 @@ async function refreshToken() {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type: 'refresh_token',
-      refresh_token: 'XbuTTBW9R6sRHWvKvnYYuJkpAIYnLaZeKHsjAL1D',  // Replace with your refresh token
-      client_id: 'client_gsIC67wRNWDFk9UPUjNV',                      // Replace with your client ID
-      client_secret: 'gsGeQmYYlWgk3GPkBLsbmTpq7GSt4lrwHHNi1IQm',      // Replace with your client secret
+      refresh_token: process.env.FOXY_REFRESH_TOKEN,  // Use environment variables for sensitive information
+      client_id: process.env.FOXY_CLIENT_ID,
+      client_secret: process.env.FOXY_CLIENT_SECRET,
     }),
   });
 
