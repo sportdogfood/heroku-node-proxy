@@ -16,29 +16,19 @@ app.use((req, res, next) => {
 
 // Function to refresh the FoxyCart access token
 async function refreshToken() {
-  try {
-    const refreshResponse = await fetch('https://api.foxycart.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: process.env.FOXY_REFRESH_TOKEN,  // Use environment variables for sensitive information
-        client_id: process.env.FOXY_CLIENT_ID,
-        client_secret: process.env.FOXY_CLIENT_SECRET,
-      }),
-    });
+  const refreshResponse = await fetch('https://api.foxycart.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: process.env.FOXY_REFRESH_TOKEN,  // Replace with your refresh token from Config Vars
+      client_id: process.env.FOXY_CLIENT_ID,          // Replace with your client ID from Config Vars
+      client_secret: process.env.FOXY_CLIENT_SECRET,  // Replace with your client secret from Config Vars
+    }),
+  });
 
-    if (!refreshResponse.ok) {
-      const errorText = await refreshResponse.text();
-      throw new Error(`Token refresh failed: ${refreshResponse.status} - ${errorText}`);
-    }
-
-    const tokenData = await refreshResponse.json();
-    return tokenData.access_token;  // Return the new access token
-  } catch (error) {
-    console.error("Error refreshing token:", error);
-    throw error;
-  }
+  const tokenData = await refreshResponse.json();
+  return tokenData.access_token;  // Return the new access token
 }
 
 // Helper function to build the query string
@@ -49,14 +39,52 @@ function buildQueryString(params) {
 
 // Helper function to handle API requests
 async function fetchFromFoxyCart(apiUrl, accessToken) {
+  const apiResponse = await fetch(apiUrl, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'FOXY-API-VERSION': '1',
+      'Content-Type': 'application/json',
+    }
+  });
+  if (!apiResponse.ok) {
+    const errorText = await apiResponse.text();
+    throw new Error(`API request failed with status ${apiResponse.status}: ${errorText}`);
+  }
+  return apiResponse.json();
+}
+
+// Generic route handler for customer-related data
+app.get('/foxycart/*', async (req, res) => {
   try {
+    const accessToken = await refreshToken();
+    const apiUrl = `https://api.foxycart.com${req.path.replace('/foxycart', '')}${buildQueryString(req.query)}`;
+    const data = await fetchFromFoxyCart(apiUrl, accessToken);
+    res.json(data);
+  } catch (error) {
+    console.error(`Error fetching data for ${req.path}:`, error);
+    res.status(500).json({ error: `Error fetching data from FoxyCart API for ${req.path}` });
+  }
+});
+
+// Route for customer authentication
+app.post('/foxycart/customer/authenticate', async (req, res) => {
+  try {
+    const { customer_id, customersession_token } = req.body;
+    const accessToken = await refreshToken();
+    const apiUrl = `https://secure.sportdogfood.com/s/customer/authenticate`;
+
     const apiResponse = await fetch(apiUrl, {
-      method: 'GET',
+      method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'FOXY-API-VERSION': '1',
         'Content-Type': 'application/json',
-      }
+      },
+      body: JSON.stringify({
+        customer_id,
+        customersession_token,
+      }),
     });
 
     if (!apiResponse.ok) {
@@ -64,33 +92,41 @@ async function fetchFromFoxyCart(apiUrl, accessToken) {
       throw new Error(`API request failed with status ${apiResponse.status}: ${errorText}`);
     }
 
-    return apiResponse.json();
-  } catch (error) {
-    console.error(`Error fetching data from FoxyCart API: ${error.message}`);
-    throw error;
-  }
-}
-
-// Generic route handler for customer-related data
-app.get('/foxycart/*', async (req, res) => {
-  try {
-    // Refresh the token before making any requests to FoxyCart
-    const accessToken = await refreshToken();
-
-    // Build the API URL using the request path, removing '/foxycart'
-    const apiUrl = `https://api.foxycart.com${req.path.replace('/foxycart', '')}${buildQueryString(req.query)}`;
-    
-    // Log the constructed API URL for debugging purposes
-    console.log(`Constructed API URL: ${apiUrl}`);
-
-    // Fetch data from the FoxyCart API
-    const data = await fetchFromFoxyCart(apiUrl, accessToken);
-
-    // Respond with the fetched data
+    const data = await apiResponse.json();
     res.json(data);
   } catch (error) {
-    console.error(`Error fetching data for ${req.path}:`, error);
-    res.status(500).json({ error: `Error fetching data from FoxyCart API for ${req.path}` });
+    console.error('Error authenticating customer:', error);
+    res.status(500).json({ error: 'Error authenticating customer from FoxyCart API' });
+  }
+});
+
+// Route for fetching customer subscriptions
+app.get('/foxycart/customer/subscriptions', async (req, res) => {
+  try {
+    const accessToken = await refreshToken();
+    const { customer_id } = req.query;
+    const apiUrl = `https://secure.sportdogfood.com/s/customer/subscriptions?customer_id=${customer_id}&zoom=transaction_template%3Aitems`;
+
+    const data = await fetchFromFoxyCart(apiUrl, accessToken);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching customer subscriptions:', error);
+    res.status(500).json({ error: 'Error fetching customer subscriptions from FoxyCart API' });
+  }
+});
+
+// Route for fetching customer transactions
+app.get('/foxycart/customer/transactions', async (req, res) => {
+  try {
+    const accessToken = await refreshToken();
+    const { customer_id } = req.query;
+    const apiUrl = `https://secure.sportdogfood.com/s/customer/transactions?customer_id=${customer_id}&zoom=items`;
+
+    const data = await fetchFromFoxyCart(apiUrl, accessToken);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching customer transactions:', error);
+    res.status(500).json({ error: 'Error fetching customer transactions from FoxyCart API' });
   }
 });
 
