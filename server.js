@@ -27,6 +27,11 @@ async function refreshToken() {
     }),
   });
 
+  if (!refreshResponse.ok) {
+    const errorText = await refreshResponse.text();
+    throw new Error(`Token refresh failed with status ${refreshResponse.status}: ${errorText}`);
+  }
+
   const tokenData = await refreshResponse.json();
   return tokenData.access_token;  // Return the new access token
 }
@@ -101,10 +106,15 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
 });
 
 // Route for fetching customer subscriptions
-app.get('/foxycart/customer/subscriptions', async (req, res) => {
+app.get('/foxycart/customers/subscriptions', async (req, res) => {
   try {
     const accessToken = await refreshToken();
     const { customer_id } = req.query;
+
+    if (!customer_id) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
     const apiUrl = `https://secure.sportdogfood.com/s/customer/subscriptions?customer_id=${customer_id}&zoom=transaction_template%3Aitems`;
 
     const data = await fetchFromFoxyCart(apiUrl, accessToken);
@@ -116,10 +126,15 @@ app.get('/foxycart/customer/subscriptions', async (req, res) => {
 });
 
 // Route for fetching customer transactions
-app.get('/foxycart/customer/transactions', async (req, res) => {
+app.get('/foxycart/customers/transactions', async (req, res) => {
   try {
     const accessToken = await refreshToken();
     const { customer_id } = req.query;
+
+    if (!customer_id) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
     const apiUrl = `https://secure.sportdogfood.com/s/customer/transactions?customer_id=${customer_id}&zoom=items`;
 
     const data = await fetchFromFoxyCart(apiUrl, accessToken);
