@@ -73,10 +73,16 @@ app.get('/foxycart/*', async (req, res) => {
 });
 
 // Route for customer authentication
+// Route for customer authentication using email and password
 app.post('/foxycart/customer/authenticate', async (req, res) => {
   try {
-    const { customer_id, customersession_token } = req.body;
-    const accessToken = await refreshToken();
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    const accessToken = await refreshToken(); // Refresh the access token (if necessary)
     const apiUrl = `https://secure.sportdogfood.com/s/customer/authenticate`;
 
     const apiResponse = await fetch(apiUrl, {
@@ -87,8 +93,8 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        customer_id,
-        customersession_token,
+        email,
+        password,
       }),
     });
 
