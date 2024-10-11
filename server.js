@@ -113,40 +113,39 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
 
 
 // Route for fetching customer data with zoom parameters using fx.customer header
+// Route for fetching customer data with zoom parameters using fx.customer from the request body
 app.post('/foxycart/customerzoom', async (req, res) => {
   try {
-    // Extract the fx.customer from the request headers
-    const fxCustomer = req.headers['fx.customer'];
+    // Extract the fx.customer value from the request body
+    const { fxCustomer } = req.body;
 
     if (!fxCustomer) {
-      return res.status(400).json({ error: 'fx.customer header is required' });
+      return res.status(400).json({ error: 'fx.customer is required' });
     }
 
     // Refresh the access token if needed
     const accessToken = await refreshToken();
     const apiUrl = `https://secure.sportdogfood.com/s/customer?sso=true&zoom=default_billing_address,default_shipping_address,default_payment_method,subscriptions,subscriptions:transactions,transactions,transactions:items`;
 
-    // Use native fetch API to make the request to FoxyCart
+    // Make the request to the FoxyCart API using fetch
     const apiResponse = await fetch(apiUrl, {
-      method: 'GET',
+      method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`, // Token for secure access
         'FOXY-API-VERSION': '1',
-        'fx.customer': fxCustomer, // Pass fx.customer to identify the customer
-        'accept': '*/*',
-        'accept-language': 'en-US,en;q=0.9',
-        'Referer': 'https://www.sportdogfood.com/',
-        'Referrer-Policy': 'strict-origin-when-cross-origin'
+        'Content-Type': 'application/json'
       },
+      body: JSON.stringify({
+        fxCustomer: fxCustomer // Include fx.customer in the body, similar to email/password
+      }),
     });
 
-    // Check for a successful response
     if (!apiResponse.ok) {
       const errorText = await apiResponse.text();
       throw new Error(`API request failed with status ${apiResponse.status}: ${errorText}`);
     }
 
-    // Parse the response as JSON
+    // Parse the response data as JSON
     const data = await apiResponse.json();
     res.json(data);
   } catch (error) {
