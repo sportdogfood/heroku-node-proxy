@@ -111,6 +111,49 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
   }
 });
 
+
+// New route to handle customer zoom requests
+app.post('/foxycart/customers/customerzoom', async (req, res) => {
+  try {
+    const { customer_id } = req.body;
+
+    if (!customer_id) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    // Get the access token (assuming refreshToken() handles this)
+    const accessToken = await refreshToken(); 
+
+    // FoxyCart API URL with zoom levels for detailed customer data
+    const apiUrl = `https://api.foxycart.com/s/customer?sso=true&zoom=default_billing_address,default_shipping_address,default_payment_method,subscriptions,subscriptions:transactions,transactions,transactions:items`;
+
+    // Make the request to FoxyCart API
+    const apiResponse = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'FOXY-API-VERSION': '1',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ customer_id })
+    });
+
+    if (!apiResponse.ok) {
+      const errorText = await apiResponse.text();
+      throw new Error(`FoxyCart request failed with status ${apiResponse.status}: ${errorText}`);
+    }
+
+    // Parse and return the data from FoxyCart
+    const data = await apiResponse.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching customer data from FoxyCart:', error);
+    res.status(500).json({ error: 'Error fetching customer data from FoxyCart API' });
+  }
+});
+
+
+
 // Route for fetching customer subscriptions
 app.get('/foxycart/customers/subscriptions', async (req, res) => {
   try {
