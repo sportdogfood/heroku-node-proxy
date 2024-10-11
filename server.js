@@ -155,6 +155,25 @@ app.get('/foxycart/customers/transactions', async (req, res) => {
   }
 });
 
+// Route for fetching SSO customer data with zoom parameters and fx.customer
+app.get('/foxycart/customer/sso', async (req, res) => {
+  try {
+    const { fxCustomer } = req.query;  // Get fx.customer from query params if provided
+    if (!fxCustomer) {
+      return res.status(400).json({ error: 'fx.customer is required' });
+    }
+
+    const accessToken = await refreshToken();
+    const apiUrl = `https://secure.sportdogfood.com/s/customer?sso=true&zoom=default_billing_address,default_shipping_address,default_payment_method,subscriptions,subscriptions:transactions,transactions,transactions:items`;
+
+    const data = await fetchFromFoxyCart(apiUrl, accessToken, fxCustomer);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching customer SSO data:', error);
+    res.status(500).json({ error: 'Error fetching customer SSO data from FoxyCart API' });
+  }
+});
+
 // Start the server
 app.listen(process.env.PORT || 3000, () => {
   console.log('Proxy server running on port 3000');
