@@ -158,21 +158,48 @@ app.get('/foxycart/customers/transactions', async (req, res) => {
 // Route for fetching SSO customer data with zoom parameters and fx.customer
 app.get('/foxycart/customer/sso', async (req, res) => {
   try {
-    const { fxCustomer } = req.query;  // Get fx.customer from query params if provided
+    const { fxCustomer } = req.query;
+
+    // Check if the fx.customer token is present
     if (!fxCustomer) {
       return res.status(400).json({ error: 'fx.customer is required' });
     }
 
+    // Refresh the FoxyCart API access token
     const accessToken = await refreshToken();
+
+    // Define the FoxyCart API URL
     const apiUrl = `https://secure.sportdogfood.com/s/customer?sso=true&zoom=default_billing_address,default_shipping_address,default_payment_method,subscriptions,subscriptions:transactions,transactions,transactions:items`;
 
-    const data = await fetchFromFoxyCart(apiUrl, accessToken, fxCustomer);
+    // Define the headers, including the fx.customer token
+    const headers = {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      'FOXY-API-VERSION': '1',
+      'fx.customer': fxCustomer
+    };
+
+    // Make the GET request to the FoxyCart API
+    const apiResponse = await fetch(apiUrl, {
+      method: 'GET',
+      headers: headers,
+    });
+
+    // Handle the response from FoxyCart
+    if (!apiResponse.ok) {
+      const errorText = await apiResponse.text();
+      throw new Error(`API request failed with status ${apiResponse.status}: ${errorText}`);
+    }
+
+    // Parse and return the response from FoxyCart
+    const data = await apiResponse.json();
     res.json(data);
   } catch (error) {
-    console.error('Error fetching customer SSO data:', error);
-    res.status(500).json({ error: 'Error fetching customer SSO data from FoxyCart API' });
+    console.error('Error fetching SSO customer data:', error);
+    res.status(500).json({ error: 'Error fetching SSO customer data from FoxyCart API' });
   }
 });
+
 
 // Start the server
 app.listen(process.env.PORT || 3000, () => {
