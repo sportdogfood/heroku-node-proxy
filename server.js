@@ -112,45 +112,49 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
 });
 
 
-// New route to handle customer zoom requests
-app.post('/foxycart/customers/customerzoom', async (req, res) => {
+// Route for fetching customer data with zoom parameters using fx.customer header
+app.post('/foxycart/customerzoom', async (req, res) => {
   try {
-    const { customer_id } = req.body;
+    // Extract the fx.customer from the request headers
+    const fxCustomer = req.headers['fx.customer'];
 
-    if (!customer_id) {
-      return res.status(400).json({ error: 'Customer ID is required' });
+    if (!fxCustomer) {
+      return res.status(400).json({ error: 'fx.customer header is required' });
     }
 
-    // Get the access token (assuming refreshToken() handles this)
-    const accessToken = await refreshToken(); 
+    // Refresh the access token if needed
+    const accessToken = await refreshToken();
+    const apiUrl = `https://secure.sportdogfood.com/s/customer?sso=true&zoom=default_billing_address,default_shipping_address,default_payment_method,subscriptions,subscriptions:transactions,transactions,transactions:items`;
 
-    // FoxyCart API URL with zoom levels for detailed customer data
-    const apiUrl = `https://api.foxycart.com/s/customer?sso=true&zoom=default_billing_address,default_shipping_address,default_payment_method,subscriptions,subscriptions:transactions,transactions,transactions:items`;
-
-    // Make the request to FoxyCart API
+    // Use native fetch API to make the request to FoxyCart
     const apiResponse = await fetch(apiUrl, {
-      method: 'POST',
+      method: 'GET',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        'Authorization': `Bearer ${accessToken}`, // Token for secure access
         'FOXY-API-VERSION': '1',
-        'Content-Type': 'application/json',
+        'fx.customer': fxCustomer, // Pass fx.customer to identify the customer
+        'accept': '*/*',
+        'accept-language': 'en-US,en;q=0.9',
+        'Referer': 'https://www.sportdogfood.com/',
+        'Referrer-Policy': 'strict-origin-when-cross-origin'
       },
-      body: JSON.stringify({ customer_id })
     });
 
+    // Check for a successful response
     if (!apiResponse.ok) {
       const errorText = await apiResponse.text();
-      throw new Error(`FoxyCart request failed with status ${apiResponse.status}: ${errorText}`);
+      throw new Error(`API request failed with status ${apiResponse.status}: ${errorText}`);
     }
 
-    // Parse and return the data from FoxyCart
+    // Parse the response as JSON
     const data = await apiResponse.json();
     res.json(data);
   } catch (error) {
-    console.error('Error fetching customer data from FoxyCart:', error);
+    console.error('Error fetching customer zoom data:', error);
     res.status(500).json({ error: 'Error fetching customer data from FoxyCart API' });
   }
 });
+
 
 
 
