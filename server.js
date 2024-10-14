@@ -154,6 +154,49 @@ app.get('/foxycart/customers/transactions', async (req, res) => {
     res.status(500).json({ error: 'Error fetching customer transactions from FoxyCart API' });
   }
 });
+// Route for sending password reset emails
+app.post('/foxycart/customer_password_resets', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const accessToken = await refreshToken();
+    const apiUrl = 'https://api.foxycart.com/customer_password_resets';
+
+    const payload = {
+      _links: {
+        self: { href: 'https://api.foxycart.com/customer_password_resets' },
+        'fx:customer': {
+          href: `https://api.foxycart.com/customers?email=${encodeURIComponent(email)}`,
+        },
+      },
+    };
+
+    const apiResponse = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/vnd.foxycart.v2.0+json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!apiResponse.ok) {
+      const errorText = await apiResponse.text();
+      throw new Error(`API request failed with status ${apiResponse.status}: ${errorText}`);
+    }
+
+    const data = await apiResponse.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Error sending password reset email:', error);
+    res.status(500).json({ error: 'Error sending password reset email via FoxyCart API' });
+  }
+});
+
 
 // Route for fetching SSO customer data with zoom parameters and fx.customer
 app.get('/foxycart/customer/sso', async (req, res) => {
