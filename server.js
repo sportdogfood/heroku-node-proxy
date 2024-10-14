@@ -6,12 +6,18 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+
 // Middleware to add CORS headers
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, fx.customer');
   next();
+});
+
+// Handle OPTIONS preflight requests
+app.options('*', (req, res) => {
+  res.sendStatus(200);
 });
 
 // Function to refresh the FoxyCart access token
