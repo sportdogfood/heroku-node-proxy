@@ -137,7 +137,7 @@ app.post('/foxycart/customer/authenticate-by-id', async (req, res) => {
     const accessToken = await refreshToken(); // Assuming refreshToken is defined elsewhere
 
     // API URL for FoxyCart customer authentication
-    const apiUrl = `https://secure.sportdogfood.com/s/customer/authenticate`;
+    const apiUrl = `https://secure.sportdogfood.com/s/customer/authenticatebyID`;
 
     // Make a POST request to FoxyCart API
     const apiResponse = await fetch(apiUrl, {
