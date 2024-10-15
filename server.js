@@ -120,72 +120,47 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
   }
 });
 
-// Route to handle password reset request
-app.post('/foxycart/customer/forgot_password', async (req, res) => {
+// Route for customer authentication using customerId and secret key
+app.post('/foxycart/customer/authenticate-by-id', async (req, res) => {
   try {
-    const { email } = req.body;
+    const { customerId } = req.body;
+    const secret = process.env.UNIFIED; // Retrieve secret key from Heroku environment variables
 
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
+    if (!customerId || !secret) {
+      return res.status(400).json({ error: 'CustomerId and secret key are required' });
     }
 
-    const accessToken = await refreshToken();
+    // Use secret key internally to secure or validate your request
+    // For example, it could be used to generate an HMAC signature or to verify some internal data
 
-    const storeId = '50526'; // Use your actual store ID
+    // Fetch an access token - ensure the access token has sufficient permissions for the task
+    const accessToken = await refreshToken(); // Assuming refreshToken is defined elsewhere
 
-    // Corrected API endpoint
-    const customerSearchUrl = `https://api.foxycart.com/stores/${storeId}/customers?email=${encodeURIComponent(email)}`;
+    // API URL for FoxyCart customer authentication
+    const apiUrl = `https://secure.sportdogfood.com/s/customer/authenticate`;
 
-    // Log the URL for debugging
-    console.log(`Customer search URL: ${customerSearchUrl}`);
-
-    const customerResponse = await fetch(customerSearchUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Accept': 'application/hal+json',
-        'FOXY-API-VERSION': '1',
-      },
-    });
-
-    if (!customerResponse.ok) {
-      const errorText = await customerResponse.text();
-      console.error(`Customer search failed: ${errorText}`);
-      return res.status(customerResponse.status).json({ error: 'Error searching for customer' });
-    }
-
-    const customerData = await customerResponse.json();
-
-    if (customerData.total_items === 0) {
-      return res.status(404).json({ error: 'Customer not found' });
-    }
-
-    const customer = customerData._embedded['fx:customers'][0];
-
-    // Proceed to request password reset email
-    const resetPasswordUrl = `https://api.foxycart.com/stores/${storeId}/reset_password_requests`;
-
-    const resetResponse = await fetch(resetPasswordUrl, {
+    // Make a POST request to FoxyCart API
+    const apiResponse = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/hal+json',
         'FOXY-API-VERSION': '1',
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email: customer.email }),
+      body: JSON.stringify({ customerId }), // Only customerId is needed
     });
 
-    if (!resetResponse.ok) {
-      const errorText = await resetResponse.text();
-      console.error(`Password reset request failed: ${errorText}`);
-      return res.status(resetResponse.status).json({ error: 'Error requesting password reset' });
+    if (!apiResponse.ok) {
+      const errorText = await apiResponse.text();
+      throw new Error(`API request failed with status ${apiResponse.status}: ${errorText}`);
     }
 
-    res.json({ message: 'Password reset email sent' });
+    // Parse the response JSON
+    const data = await apiResponse.json();
+    res.json(data);
   } catch (error) {
-    console.error('Error processing password reset:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error authenticating customer by ID:', error);
+    res.status(500).json({ error: 'Error authenticating customer from FoxyCart API' });
   }
 });
 
