@@ -121,10 +121,9 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
 });
 
 // Route to handle password reset request
-app.post('/foxycart/stores/:storeId/customers', async (req, res) => {
+app.post('/foxycart/customer/forgot_password', async (req, res) => {
   try {
     const { email } = req.body;
-    const storeId = req.params.storeId;
 
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
@@ -132,14 +131,18 @@ app.post('/foxycart/stores/:storeId/customers', async (req, res) => {
 
     const accessToken = await refreshToken();
 
-    // Search for the customer
+    const storeId = '50526'; // Use your actual store ID
+
+    // Corrected API endpoint
     const customerSearchUrl = `https://api.foxycart.com/stores/${storeId}/customers?email=${encodeURIComponent(email)}`;
+
+    // Log the URL for debugging
+    console.log(`Customer search URL: ${customerSearchUrl}`);
 
     const customerResponse = await fetch(customerSearchUrl, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
         'Accept': 'application/hal+json',
         'FOXY-API-VERSION': '1',
       },
@@ -159,7 +162,7 @@ app.post('/foxycart/stores/:storeId/customers', async (req, res) => {
 
     const customer = customerData._embedded['fx:customers'][0];
 
-    // Request password reset email
+    // Proceed to request password reset email
     const resetPasswordUrl = `https://api.foxycart.com/stores/${storeId}/reset_password_requests`;
 
     const resetResponse = await fetch(resetPasswordUrl, {
