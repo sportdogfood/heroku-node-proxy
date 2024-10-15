@@ -134,7 +134,7 @@ app.post('/foxycart/customer/forgot_password', async (req, res) => {
 
     const storeId = '50526'; // Use your actual store ID
 
-    // Search for the customer
+    // Corrected API endpoint
     const customerSearchUrl = `https://api.foxycart.com/stores/${storeId}/customers?email=${encodeURIComponent(email)}`;
 
     const customerResponse = await fetch(customerSearchUrl, {
@@ -143,8 +143,8 @@ app.post('/foxycart/customer/forgot_password', async (req, res) => {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
         'Accept': 'application/hal+json',
-        'FOXY-API-VERSION': '1'
-      }
+        'FOXY-API-VERSION': '1',
+      },
     });
 
     if (!customerResponse.ok) {
@@ -170,9 +170,9 @@ app.post('/foxycart/customer/forgot_password', async (req, res) => {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
         'Accept': 'application/hal+json',
-        'FOXY-API-VERSION': '1'
+        'FOXY-API-VERSION': '1',
       },
-      body: JSON.stringify({ email: customer.email })
+      body: JSON.stringify({ email: customer.email }),
     });
 
     if (!resetResponse.ok) {
@@ -182,7 +182,6 @@ app.post('/foxycart/customer/forgot_password', async (req, res) => {
     }
 
     res.json({ message: 'Password reset email sent' });
-
   } catch (error) {
     console.error('Error processing password reset:', error);
     res.status(500).json({ error: 'Internal server error' });
