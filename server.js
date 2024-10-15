@@ -6,7 +6,6 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-
 // Middleware to add CORS headers
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -222,7 +221,43 @@ app.get('/foxycart/customers/transactions', async (req, res) => {
   }
 });
 
+// Route to update customer data
+app.patch('/foxycart/customers/:id', async (req, res) => {
+  try {
+    const customerId = req.params.id;
+    const updatedData = req.body;
 
+    if (!customerId) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    const accessToken = await refreshToken();
+
+    const apiUrl = `https://api.foxycart.com/customers/${customerId}`;
+
+    const apiResponse = await fetch(apiUrl, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'FOXY-API-VERSION': '1',
+      },
+      body: JSON.stringify(updatedData),
+    });
+
+    if (!apiResponse.ok) {
+      const errorText = await apiResponse.text();
+      console.error(`Failed to update customer: ${errorText}`);
+      return res.status(apiResponse.status).json({ error: errorText });
+    }
+
+    const data = await apiResponse.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Error updating customer:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // Route for fetching SSO customer data with zoom parameters and fx.customer
 app.get('/foxycart/customer/sso', async (req, res) => {
