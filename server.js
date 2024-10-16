@@ -143,6 +143,7 @@ app.get('/foxycart/customers/id', async (req, res) => {
 
 // Specific routes for customer authentication, subscriptions, transactions, and other established routes
 // Route for customer authentication using email and password
+// Route for customer authentication using email and password (HAL+JSON support)
 app.post('/foxycart/customer/authenticate', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -151,16 +152,41 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
+    // Refresh token to ensure we have a valid access token for API requests
     const accessToken = await refreshToken();
+
+    // Set the API URL for authenticating the customer
     const apiUrl = `https://secure.sportdogfood.com/s/customer/authenticate`;
 
+    // Make the request to FoxyCart API to authenticate the customer
     const data = await makeFoxyCartRequest('POST', apiUrl, accessToken, { email, password });
-    res.json(data);
+
+    // Handle HAL+JSON response
+    if (data._embedded && data._embedded['fx:session']) {
+      const session = data._embedded['fx:session'];
+
+      // Prepare the session response data (HAL parsing)
+      const sessionResponse = {
+        jwt: session.jwt,
+        sso: session.sso,
+        session_token: session.session_token,
+        expires_in: session.expires_in,
+        fc_customer_id: session.fc_customer_id,
+        fc_auth_token: session.fc_auth_token
+      };
+
+      // Send the session data back to the client
+      res.json(sessionResponse);
+    } else {
+      // If no session data found in the response, return an error
+      res.status(401).json({ error: 'Authentication failed, invalid email or password.' });
+    }
   } catch (error) {
     console.error('Error authenticating customer:', error);
     res.status(500).json({ error: 'Error authenticating customer from FoxyCart API' });
   }
 });
+
 
 // Route for fetching customer subscriptions
 app.get('/foxycart/customers/subscriptions', async (req, res) => {
