@@ -83,71 +83,42 @@ async function makeFoxyCartRequest(method, endpoint, accessToken, body = null, f
 }
 
 // Route handlers
+
 app.all('/foxycart/*', async (req, res) => {
   try {
     const accessToken = await refreshToken();
     const method = req.method;
-    const apiUrl = `https://api.foxycart.com${req.path.replace('/foxycart', '')}`;
-    const fxCustomer = req.headers['fx.customer'] || null;
-    const body = ['POST', 'PATCH', 'PUT'].includes(method) ? req.body : null;
 
-    const data = await makeFoxyCartRequest(method, apiUrl, accessToken, body, fxCustomer);
-    res.json(data);
+    // Construct the API URL with proper query parameters
+    const apiUrl = `https://api.foxycart.com${req.path.replace('/foxycart', '')}${req.url.replace(req.path, '')}`;
+
+    console.log(`Forwarding request to FoxyCart API: ${apiUrl}`);
+
+    const options = {
+      method,
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'FOXY-API-VERSION': '1',
+        'Content-Type': 'application/json'
+      }
+    };
+
+    const response = await fetch(apiUrl, options);
+    const responseText = await response.text();
+
+    console.log(`FoxyCart API response: ${response.status} - ${responseText}`);
+
+    if (!response.ok) {
+      throw new Error(`FoxyCart API returned error: ${response.statusText}`);
+    }
+
+    res.status(response.status).send(responseText);
   } catch (error) {
     console.error(`Error handling request for ${req.path}:`, error);
     res.status(500).json({ error: `Error handling request for ${req.path}` });
   }
 });
-// Route to search customers by email
-// Route to search customers by email
-app.get('/foxycart/customers/email', async (req, res) => {
-  try {
-    const { email } = req.query;
 
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
-    }
-
-    // Ensure the email is URL-encoded
-    const encodedEmail = encodeURIComponent(email);
-    
-    // Refresh the access token
-    const accessToken = await refreshToken();
-    
-    // Construct the API URL
-    const apiUrl = `https://api.foxycart.com/stores/50526/customers?email=${encodedEmail}`;
-
-    console.log(`Sending request to FoxyCart API: ${apiUrl}`);
-    
-    // Fetch data from FoxyCart API
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'FOXY-API-VERSION': '1',
-        'Content-Type': 'application/json',
-      }
-    });
-
-    // Log the response status and body
-    const responseText = await response.text();
-    console.log(`FoxyCart API Response Status: ${response.status}`);
-    console.log(`FoxyCart API Response Body: ${responseText}`);
-
-    // Check if the response is OK
-    if (!response.ok) {
-      throw new Error(`FoxyCart API returned an error: ${response.status} - ${response.statusText}`);
-    }
-
-    // Parse and send the JSON response
-    const data = JSON.parse(responseText);
-    res.json(data);
-
-  } catch (error) {
-    console.error(`Error searching customer by email:`, error);
-    res.status(500).json({ error: `Error searching customer by email: ${error.message}` });
-  }
-});
 
 
 // Route to search customers by fx_customer_id
