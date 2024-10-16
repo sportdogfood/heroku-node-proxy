@@ -92,7 +92,6 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Validate the request
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
@@ -107,18 +106,16 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
     // Log the entire response for debugging
     console.log('Authentication response from FoxyCart:', JSON.stringify(data, null, 2));
 
-    // Check if the response contains the expected session data
-    if (data && data._embedded && data._embedded['fx:session']) {
-      const session = data._embedded['fx:session'];
-
-      // Return the session data to the client
+    // Check if the response contains the necessary session details
+    if (data && data.session_token && data.jwt && data.sso) {
+      // Authentication succeeded, return the session details
       res.json({
-        jwt: session.jwt,
-        sso: session.sso,
-        session_token: session.session_token,
-        expires_in: session.expires_in,
-        fc_customer_id: session.fc_customer_id,
-        fc_auth_token: session.fc_auth_token
+        jwt: data.jwt,
+        sso: data.sso,
+        session_token: data.session_token,
+        expires_in: data.expires_in,
+        fc_customer_id: new URLSearchParams(new URL(data.sso).search).get('fc_customer_id'),
+        fc_auth_token: new URLSearchParams(new URL(data.sso).search).get('fc_auth_token')
       });
     } else {
       // If authentication fails, log and return a 401 error
@@ -133,6 +130,7 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
     res.status(500).json({ error: 'Error authenticating customer from FoxyCart API' });
   }
 });
+
 
 
 
