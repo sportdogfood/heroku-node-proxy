@@ -98,6 +98,45 @@ app.all('/foxycart/*', async (req, res) => {
     res.status(500).json({ error: `Error handling request for ${req.path}` });
   }
 });
+// Route to search customers by email
+app.get('/foxycart/customers/email', async (req, res) => {
+  try {
+    const { email } = req.query;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const accessToken = await refreshToken();
+    const apiUrl = `https://api.foxycart.com/stores/50526/customers?email=${email}`;
+
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+    res.json(data);
+  } catch (error) {
+    console.error(`Error searching customer by email:`, error);
+    res.status(500).json({ error: 'Error searching customer by email' });
+  }
+});
+
+// Route to search customers by fx_customer_id
+app.get('/foxycart/customers/id', async (req, res) => {
+  try {
+    const { fx_customer_id } = req.query;
+
+    if (!fx_customer_id) {
+      return res.status(400).json({ error: 'fx_customer_id is required' });
+    }
+
+    const accessToken = await refreshToken();
+    const apiUrl = `https://api.foxycart.com/customers/${fx_customer_id}`;
+
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+    res.json(data);
+  } catch (error) {
+    console.error(`Error searching customer by fx_customer_id:`, error);
+    res.status(500).json({ error: 'Error searching customer by fx_customer_id' });
+  }
+});
 
 // Specific routes for customer authentication, subscriptions, transactions, and other established routes
 // Route for customer authentication using email and password
