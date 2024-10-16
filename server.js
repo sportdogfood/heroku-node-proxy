@@ -99,6 +99,7 @@ app.all('/foxycart/*', async (req, res) => {
   }
 });
 // Route to search customers by email
+// Route to search customers by email
 app.get('/foxycart/customers/email', async (req, res) => {
   try {
     const { email } = req.query;
@@ -107,16 +108,47 @@ app.get('/foxycart/customers/email', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
+    // Ensure the email is URL-encoded
+    const encodedEmail = encodeURIComponent(email);
+    
+    // Refresh the access token
     const accessToken = await refreshToken();
-    const apiUrl = `https://api.foxycart.com/stores/50526/customers?email=${email}`;
+    
+    // Construct the API URL
+    const apiUrl = `https://api.foxycart.com/stores/50526/customers?email=${encodedEmail}`;
 
-    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+    console.log(`Sending request to FoxyCart API: ${apiUrl}`);
+    
+    // Fetch data from FoxyCart API
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'FOXY-API-VERSION': '1',
+        'Content-Type': 'application/json',
+      }
+    });
+
+    // Log the response status and body
+    const responseText = await response.text();
+    console.log(`FoxyCart API Response Status: ${response.status}`);
+    console.log(`FoxyCart API Response Body: ${responseText}`);
+
+    // Check if the response is OK
+    if (!response.ok) {
+      throw new Error(`FoxyCart API returned an error: ${response.status} - ${response.statusText}`);
+    }
+
+    // Parse and send the JSON response
+    const data = JSON.parse(responseText);
     res.json(data);
+
   } catch (error) {
     console.error(`Error searching customer by email:`, error);
-    res.status(500).json({ error: 'Error searching customer by email' });
+    res.status(500).json({ error: `Error searching customer by email: ${error.message}` });
   }
 });
+
 
 // Route to search customers by fx_customer_id
 app.get('/foxycart/customers/id', async (req, res) => {
