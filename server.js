@@ -88,9 +88,6 @@ async function makeFoxyCartRequest(method, endpoint, accessToken, body = null, f
   }
 }
 
-// Route handlers
-
-// Route for customer authentication using email and password
 app.post('/foxycart/customer/authenticate', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -99,14 +96,21 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
+    // Refresh the FoxyCart access token
     const accessToken = await refreshToken();
     const apiUrl = `https://secure.sportdogfood.com/s/customer/authenticate`;
 
+    // Make the request to authenticate the customer
     const data = await makeFoxyCartRequest('POST', apiUrl, accessToken, { email, password });
 
+    // Log the entire response to inspect it
+    console.log('Authentication response from FoxyCart:', JSON.stringify(data, null, 2));
+
+    // Check if the expected session data is available in the response
     if (data._embedded && data._embedded['fx:session']) {
       const session = data._embedded['fx:session'];
 
+      // Send the session data in the response
       res.json({
         jwt: session.jwt,
         sso: session.sso,
@@ -116,13 +120,16 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
         fc_auth_token: session.fc_auth_token
       });
     } else {
+      // If the response doesn't contain session data, return an authentication failure
       res.status(401).json({ error: 'Authentication failed. Invalid email or password.' });
     }
   } catch (error) {
+    // Log the error and return a 500 status with a relevant error message
     console.error('Error authenticating customer:', error);
     res.status(500).json({ error: 'Error authenticating customer from FoxyCart API' });
   }
 });
+
 
 // Route to search customers by fx_customer_id
 app.get('/foxycart/customers/id', async (req, res) => {
