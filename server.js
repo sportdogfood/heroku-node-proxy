@@ -167,6 +167,61 @@ app.get('/foxycart/customers/:id', async (req, res) => {
   }
 });
 
+// Proxy route for calling FoxyCart API to fetch transactions by customer ID
+// Route for fetching customer subscriptions
+app.get('/foxycart/customers/subscriptions', async (req, res) => {
+  try {
+    const { customer_id } = req.query;
+
+    if (!customer_id) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    const accessToken = await refreshToken();
+    const apiUrl = `https://api.foxycart.com/stores/50526/subscriptions?customer_id=${customer_id}&limit=2`;
+
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    if (data._embedded && data._embedded['fx:subscriptions']) {
+      const subscriptions = data._embedded['fx:subscriptions'];
+      res.json(subscriptions);
+    } else {
+      res.status(404).json({ error: 'No subscriptions found.' });
+    }
+  } catch (error) {
+    console.error('Error fetching customer subscriptions:', error);
+    res.status(500).json({ error: 'Error fetching customer subscriptions from FoxyCart API' });
+  }
+});
+
+// Route for fetching customer transactions
+app.get('/foxycart/customers/transactions', async (req, res) => {
+  try {
+    const { customer_id } = req.query;
+
+    if (!customer_id) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    const accessToken = await refreshToken();
+    const apiUrl = `https://api.foxycart.com/stores/50526/transactions?customer_id=${customer_id}&limit=6&zoom=items,items:item_options,items:item_category`;
+
+    console.log(`Fetching transactions for customer ID: ${customer_id} with URL: ${apiUrl}`);
+
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    if (data._embedded && data._embedded['fx:transactions']) {
+      const transactions = data._embedded['fx:transactions'];
+      res.json(transactions);
+    } else {
+      res.status(404).json({ error: 'No transactions found.' });
+    }
+  } catch (error) {
+    console.error('Error fetching customer transactions:', error);
+    res.status(500).json({ error: 'Error fetching customer transactions from FoxyCart API' });
+  }
+});
+
 // Start the server
 app.listen(process.env.PORT || 3000, () => {
   console.log('Proxy server running on port 3000');
