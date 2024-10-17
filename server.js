@@ -205,6 +205,101 @@ app.get('/foxycart/subscriptions', async (req, res) => {
   }
 });
 
+app.get('/foxycart/carts/:cart_id/items', async (req, res) => {
+  try {
+    const { cart_id } = req.params;
+
+    if (!cart_id) {
+      return res.status(400).json({ error: 'Cart ID is required' });
+    }
+
+    const accessToken = await refreshToken();
+    const apiUrl = `https://api.foxycart.com/carts/${cart_id}/items`;
+
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    if (data) {
+      res.json(data);
+    } else {
+      res.status(404).json({ error: 'Cart not found or no items found in the cart.' });
+    }
+  } catch (error) {
+    console.error('Error fetching cart items:', error);
+    res.status(500).json({ error: 'Failed to retrieve cart items from FoxyCart API' });
+  }
+});
+
+app.get('/foxycart/subscriptions/:subscription_id', async (req, res) => {
+  try {
+    const { subscription_id } = req.params;
+
+    if (!subscription_id) {
+      return res.status(400).json({ error: 'Subscription ID is required' });
+    }
+
+    const accessToken = await refreshToken();
+    const apiUrl = `https://api.foxycart.com/subscriptions/${subscription_id}`;
+
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    if (data) {
+      res.json(data);
+    } else {
+      res.status(404).json({ error: 'Subscription not found.' });
+    }
+  } catch (error) {
+    console.error('Error fetching subscription:', error);
+    res.status(500).json({ error: 'Failed to retrieve subscription from FoxyCart API' });
+  }
+});
+
+app.get('/foxycart/items/:item_id', async (req, res) => {
+  try {
+    const { item_id } = req.params;
+
+    if (!item_id) {
+      return res.status(400).json({ error: 'Item ID is required' });
+    }
+
+    const accessToken = await refreshToken();
+    const apiUrl = `https://api.foxycart.com/items/${item_id}`;
+
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    if (data) {
+      res.json(data);
+    } else {
+      res.status(404).json({ error: 'Item not found.' });
+    }
+  } catch (error) {
+    console.error('Error fetching item:', error);
+    res.status(500).json({ error: 'Failed to retrieve item from FoxyCart API' });
+  }
+});
+
+app.patch('/foxycart/subscriptions/:subscription_id/send_webhooks', async (req, res) => {
+  try {
+    const { subscription_id } = req.params;
+
+    if (!subscription_id) {
+      return res.status(400).json({ error: 'Subscription ID is required' });
+    }
+
+    const accessToken = await refreshToken();
+    const apiUrl = `https://api.foxycart.com/subscriptions/${subscription_id}/send_webhooks`;
+
+    const data = await makeFoxyCartRequest('PATCH', apiUrl, accessToken);
+
+    if (data) {
+      res.json(data);
+    } else {
+      res.status(404).json({ error: 'Failed to trigger webhook for the subscription.' });
+    }
+  } catch (error) {
+    console.error('Error triggering webhook for subscription:', error);
+    res.status(500).json({ error: 'Failed to trigger webhook for subscription from FoxyCart API' });
+  }
+});
 
 
 // Route for fetching customer transactions
