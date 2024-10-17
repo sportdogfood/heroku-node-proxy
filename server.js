@@ -199,28 +199,36 @@ app.get('/foxycart/customers/transactions', async (req, res) => {
 
 
 // Proxy route for calling FoxyCart API
+// Proxy route for calling FoxyCart API to fetch customer details by ID
 app.get('/foxycart/customers/:id', async (req, res) => {
-  const customerId = req.params.id;
-  const zoomParams = req.query.zoom;
-
-  const apiUrl = `https://api.foxycart.com/customers/${customerId}?sso=true&zoom=${zoomParams}`;
   try {
-    const apiResponse = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.FOXY_API_TOKEN}`,
-        'FOXY-API-VERSION': '1'
-      }
-    });
-    
-    const data = await apiResponse.json();
-    res.json(data);
+    const customerId = req.params.id;
+    const zoomParams = req.query.zoom;
+
+    if (!customerId) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    // Get a new FoxyCart access token
+    const accessToken = await refreshToken();
+    const apiUrl = `https://api.foxycart.com/customers/${customerId}?sso=true&zoom=${zoomParams}`;
+
+    // Use the helper function to make the request
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    // Check if data is returned successfully
+    if (data) {
+      res.json(data);
+    } else {
+      res.status(404).json({ error: 'Customer not found or no data returned.' });
+    }
   } catch (error) {
-    console.error('Error calling FoxyCart API:', error);
-    res.status(500).json({ error: 'Failed to retrieve customer data' });
+    // Log any errors that occur
+    console.error('Error fetching customer data:', error);
+    res.status(500).json({ error: 'Failed to retrieve customer data from FoxyCart API' });
   }
 });
+
 
 // Start the server
 app.listen(process.env.PORT || 3000, () => {
