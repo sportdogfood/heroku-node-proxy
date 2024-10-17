@@ -94,144 +94,76 @@ async function makeFoxyCartRequest(method, endpoint, accessToken, body = null, f
   }
 }
 
-// Route for fetching customer subscriptions
-app.get('/foxycart/customers/subscriptions', async (req, res) => {
+app.post('/foxycart/customer/authenticate', async (req, res) => {
   try {
-    const { customer_id } = req.query;
+    const { email, password } = req.body;
 
-    if (!customer_id) {
-      return res.status(400).json({ error: 'Customer ID is required' });
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
     }
 
+    // Get a new FoxyCart access token
     const accessToken = await refreshToken();
-    const apiUrl = `https://api.foxycart.com/stores/50526/subscriptions?customer_id=${customer_id}&limit=2`;
+    const apiUrl = `https://secure.sportdogfood.com/s/customer/authenticate`;
 
-    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+    // Make the request to FoxyCart for customer authentication
+    const data = await makeFoxyCartRequest('POST', apiUrl, accessToken, { email, password });
 
-    if (data._embedded && data._embedded['fx:subscriptions']) {
-      const subscriptions = data._embedded['fx:subscriptions'].filter(subscription => subscription.is_active);
-      res.json(subscriptions);
+    // Log the entire response for debugging
+    console.log('Authentication response from FoxyCart:', JSON.stringify(data, null, 2));
+
+    // Check if the response contains the necessary session details
+    if (data && data.session_token && data.jwt && data.sso) {
+      // Authentication succeeded, return the session details
+      res.json({
+        jwt: data.jwt,
+        sso: data.sso,
+        session_token: data.session_token,
+        expires_in: data.expires_in,
+        fc_customer_id: new URLSearchParams(new URL(data.sso).search).get('fc_customer_id'),
+        fc_auth_token: new URLSearchParams(new URL(data.sso).search).get('fc_auth_token')
+      });
     } else {
-      res.status(404).json({ error: 'No subscriptions found.' });
+      // If authentication fails, log and return a 401 error
+      console.error('Authentication failed, invalid response:', JSON.stringify(data));
+      res.status(401).json({ error: 'Authentication failed. Invalid email or password.' });
     }
   } catch (error) {
-    console.error('Error fetching customer subscriptions:', error);
-    res.status(500).json({ error: 'Error fetching customer subscriptions from FoxyCart API' });
+    // Log any errors that occur during the process
+    console.error('Error authenticating customer:', error);
+
+    // Return a 500 error with a generic message
+    res.status(500).json({ error: 'Error authenticating customer from FoxyCart API' });
   }
 });
 
-// Route for fetching customer transactions
-app.get('/foxycart/customers/transactions', async (req, res) => {
-  try {
-    const { customer_id } = req.query;
-
-    if (!customer_id) {
-      return res.status(400).json({ error: 'Customer ID is required' });
-    }
-
-    const accessToken = await refreshToken();
-    const apiUrl = `https://api.foxycart.com/stores/50526/transactions?customer_id=${customer_id}&limit=10&zoom=items`;
-
-    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
-
-    if (data._embedded && data._embedded['fx:transactions']) {
-      const transactions = data._embedded['fx:transactions'];
-      res.json(transactions);
-    } else {
-      res.status(404).json({ error: 'No transactions found.' });
-    }
-  } catch (error) {
-    console.error('Error fetching customer transactions:', error);
-    res.status(500).json({ error: 'Error fetching customer transactions from FoxyCart API' });
-  }
-});
-
-// Route for fetching customer carts
-app.get('/foxycart/customers/carts', async (req, res) => {
-  try {
-    const { customer_id } = req.query;
-
-    if (!customer_id) {
-      return res.status(400).json({ error: 'Customer ID is required' });
-    }
-
-    const accessToken = await refreshToken();
-    const apiUrl = `https://api.foxycart.com/stores/50526/carts?customer_id=${customer_id}`;
-
-    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
-
-    if (data._embedded && data._embedded['fx:carts']) {
-      const carts = data._embedded['fx:carts'];
-      res.json(carts);
-    } else {
-      res.status(404).json({ error: 'No carts found.' });
-    }
-  } catch (error) {
-    console.error('Error fetching customer carts:', error);
-    res.status(500).json({ error: 'Error fetching customer carts from FoxyCart API' });
-  }
-});
-
-// PUT route for updating customer details
-app.put('/foxycart/customers/:id', async (req, res) => {
+// Proxy route for calling FoxyCart API to fetch customer details by ID
+app.get('/foxycart/customers/:id', async (req, res) => {
   try {
     const customerId = req.params.id;
-    const customerData = req.body;
+    const zoomParams = req.query.zoom;
 
-    if (!customerId || !customerData) {
-      return res.status(400).json({ error: 'Customer ID and data are required' });
+    if (!customerId) {
+      return res.status(400).json({ error: 'Customer ID is required' });
     }
 
+    // Get a new FoxyCart access token
     const accessToken = await refreshToken();
-    const apiUrl = `https://api.foxycart.com/customers/${customerId}`;
+    const apiUrl = `https://api.foxycart.com/customers/${customerId}?sso=true&zoom=${zoomParams}`;
 
-    const data = await makeFoxyCartRequest('PUT', apiUrl, accessToken, customerData);
-    res.json(data);
-  } catch (error) {
-    console.error('Error updating customer details:', error);
-    res.status(500).json({ error: 'Failed to update customer details in FoxyCart API' });
-  }
-});
+    // Use the helper function to make the request
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
 
-// PUT route for updating subscriptions
-app.put('/foxycart/subscriptions/:id', async (req, res) => {
-  try {
-    const subscriptionId = req.params.id;
-    const subscriptionData = req.body;
-
-    if (!subscriptionId || !subscriptionData) {
-      return res.status(400).json({ error: 'Subscription ID and data are required' });
+    // Check if data is returned successfully
+    if (data) {
+      res.json(data);
+    } else {
+      res.status(404).json({ error: 'Customer not found or no data returned.' });
     }
-
-    const accessToken = await refreshToken();
-    const apiUrl = `https://api.foxycart.com/subscriptions/${subscriptionId}`;
-
-    const data = await makeFoxyCartRequest('PUT', apiUrl, accessToken, subscriptionData);
-    res.json(data);
   } catch (error) {
-    console.error('Error updating subscription:', error);
-    res.status(500).json({ error: 'Failed to update subscription in FoxyCart API' });
-  }
-});
-
-// PUT route for updating carts
-app.put('/foxycart/carts/:id', async (req, res) => {
-  try {
-    const cartId = req.params.id;
-    const cartData = req.body;
-
-    if (!cartId || !cartData) {
-      return res.status(400).json({ error: 'Cart ID and data are required' });
-    }
-
-    const accessToken = await refreshToken();
-    const apiUrl = `https://api.foxycart.com/carts/${cartId}`;
-
-    const data = await makeFoxyCartRequest('PUT', apiUrl, accessToken, cartData);
-    res.json(data);
-  } catch (error) {
-    console.error('Error updating cart:', error);
-    res.status(500).json({ error: 'Failed to update cart in FoxyCart API' });
+    // Log any errors that occur
+    console.error('Error fetching customer data:', error);
+    res.status(500).json({ error: 'Failed to retrieve customer data from FoxyCart API' });
   }
 });
 
