@@ -141,31 +141,7 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
 
 
 
-// Route to search customers by fx_customer_id
-app.get('/foxycart/customers/id', async (req, res) => {
-  try {
-    const { fx_customer_id } = req.query;
 
-    if (!fx_customer_id) {
-      return res.status(400).json({ error: 'fx_customer_id is required' });
-    }
-
-    const accessToken = await refreshToken();
-    const apiUrl = `https://api.foxycart.com/customers/${fx_customer_id}`;
-
-    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
-
-    if (data._embedded && data._embedded['fx:customers']) {
-      const customer = data._embedded['fx:customers'][0];  // Access first customer
-      res.json(customer);
-    } else {
-      res.status(404).json({ error: 'Customer not found.' });
-    }
-  } catch (error) {
-    console.error(`Error searching customer by fx_customer_id:`, error);
-    res.status(500).json({ error: 'Error searching customer by fx_customer_id' });
-  }
-});
 
 // Route for fetching customer subscriptions
 app.get('/foxycart/customers/subscriptions', async (req, res) => {
@@ -219,48 +195,30 @@ app.get('/foxycart/customers/transactions', async (req, res) => {
   }
 });
 
-app.patch('/foxycart/customers/:id', async (req, res) => {
+
+
+
+// Proxy route for calling FoxyCart API
+app.get('/foxycart/customers/:id', async (req, res) => {
+  const customerId = req.params.id;
+  const zoomParams = req.query.zoom;
+
+  const apiUrl = `https://api.foxycart.com/customers/${customerId}?sso=true&zoom=${zoomParams}`;
   try {
-    const customerId = req.params.id;
-    const updatedData = req.body;
-
-    if (!customerId) {
-      return res.status(400).json({ error: 'Customer ID is required' });
-    }
-
-    const accessToken = await refreshToken();
-    const apiUrl = `https://api.foxycart.com/customers/${customerId}`;
-
-    const data = await makeFoxyCartRequest('PATCH', apiUrl, accessToken, updatedData);
-
-    if (data._embedded && data._embedded['fx:customer']) {
-      res.json(data._embedded['fx:customer']);  // Return updated customer data
-    } else {
-      res.status(400).json({ error: 'Customer update failed.' });
-    }
-  } catch (error) {
-    console.error('Error updating customer:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-
-// Route for fetching SSO customer data with zoom parameters and fx.customer
-app.get('/foxycart/customer/sso', async (req, res) => {
-  try {
-    const { fxCustomer } = req.query;
-    if (!fxCustomer) {
-      return res.status(400).json({ error: 'fx.customer is required' });
-    }
-
-    const accessToken = await refreshToken();
-    const apiUrl = `https://secure.sportdogfood.com/s/customer?sso=true&zoom=default_billing_address,default_shipping_address,default_payment_method,subscriptions,subscriptions:transactions,transactions,transactions:items`;
-
-    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken, null, fxCustomer);
+    const apiResponse = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.FOXY_API_TOKEN}`,
+        'FOXY-API-VERSION': '1'
+      }
+    });
+    
+    const data = await apiResponse.json();
     res.json(data);
   } catch (error) {
-    console.error('Error fetching SSO customer data:', error);
-    res.status(500).json({ error: 'Error fetching SSO customer data from FoxyCart API' });
+    console.error('Error calling FoxyCart API:', error);
+    res.status(500).json({ error: 'Failed to retrieve customer data' });
   }
 });
 
