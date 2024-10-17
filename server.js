@@ -205,9 +205,9 @@ app.get('/foxycart/transactions', async (req, res) => {
     }
 
     const accessToken = await refreshToken();
- const apiUrl = `https://api.foxycart.com/stores/50526/transactions?customer_id=${customer_id}&limit=6&zoom=items,items:item_options,items:item_category`;
+    const apiUrl = `https://api.foxycart.com/stores/50526/transactions?customer_id=${customer_id}&limit=6&zoom=items,items:item_options,items:item_category`;
 
-    console.log(Fetching transactions for customer ID: ${customer_id} with URL: ${apiUrl});
+    console.log(`Fetching transactions for customer ID: ${customer_id} with URL: ${apiUrl}`);
 
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
 
