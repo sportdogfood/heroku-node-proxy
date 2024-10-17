@@ -194,8 +194,9 @@ app.get('/foxycart/customers/subscriptions', async (req, res) => {
   }
 });
 
+
 // Route for fetching customer transactions
-app.get('/foxycart/customers/transactions', async (req, res) => {
+app.get('/foxycart/transactions', async (req, res) => {
   try {
     const { customer_id } = req.query;
 
@@ -204,9 +205,9 @@ app.get('/foxycart/customers/transactions', async (req, res) => {
     }
 
     const accessToken = await refreshToken();
-    const apiUrl = `https://api.foxycart.com/stores/50526/transactions?customer_id=${customer_id}&limit=6&zoom=items,items:item_options,items:item_category`;
+ const apiUrl = `https://api.foxycart.com/stores/50526/transactions?customer_id=${customer_id}&limit=6&zoom=items,items:item_options,items:item_category`;
 
-    console.log(`Fetching transactions for customer ID: ${customer_id} with URL: ${apiUrl}`);
+    console.log(Fetching transactions for customer ID: ${customer_id} with URL: ${apiUrl});
 
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
 
@@ -221,6 +222,7 @@ app.get('/foxycart/customers/transactions', async (req, res) => {
     res.status(500).json({ error: 'Error fetching customer transactions from FoxyCart API' });
   }
 });
+
 
 // Start the server
 app.listen(process.env.PORT || 3000, () => {
