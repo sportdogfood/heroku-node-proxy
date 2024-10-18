@@ -345,7 +345,7 @@ app.post('/foxycart/customer/zoom', async (req, res) => {
 
     const accessToken = await refreshToken();
 
-    // Step 1: Fetch customer details with the provided JWT
+    // Step 1: Fetch customer details using JWT
     const customerUrl = `https://api.foxycart.com/customers/${fc_customer_id}?sso=true`;
     const customerData = await makeFoxyCartRequest('GET', customerUrl, accessToken, null);
 
@@ -354,7 +354,7 @@ app.post('/foxycart/customer/zoom', async (req, res) => {
       return res.status(404).json({ error: 'Failed to fetch customer data' });
     }
 
-    // Step 2: Fetch customer transactions (Ensure there is no request body)
+    // Step 2: Fetch customer transactions using access token (not JWT)
     const transactionsUrl = `https://api.foxycart.com/stores/50526/transactions?customer_id=${fc_customer_id}&limit=2&zoom=items,items:item_options,items:item_category`;
     const transactionsData = await makeFoxyCartRequest('GET', transactionsUrl, accessToken);
 
@@ -363,7 +363,7 @@ app.post('/foxycart/customer/zoom', async (req, res) => {
       return res.status(404).json({ error: 'Failed to fetch transactions or no transactions found' });
     }
 
-    // Step 3: Fetch customer subscriptions (Ensure there is no request body)
+    // Step 3: Fetch customer subscriptions using access token (not JWT)
     const subscriptionsUrl = `https://api.foxycart.com/stores/50526/subscriptions?customer_id=${fc_customer_id}&limit=2`;
     const subscriptionsData = await makeFoxyCartRequest('GET', subscriptionsUrl, accessToken);
 
@@ -386,6 +386,7 @@ app.post('/foxycart/customer/zoom', async (req, res) => {
     res.status(500).json({ error: 'Error fetching full customer data from FoxyCart API' });
   }
 });
+
 
 
 
