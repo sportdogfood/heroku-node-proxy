@@ -335,6 +335,9 @@ app.get('/foxycart/transactions', async (req, res) => {
 
 app.post('/foxycart/customer/zoom', async (req, res) => {
   try {
+    // Log the request body for debugging
+    console.log('Incoming /zoom request body:', req.body);
+
     const { fc_customer_id, jwt } = req.body;
 
     if (!fc_customer_id || !jwt) {
@@ -347,12 +350,18 @@ app.post('/foxycart/customer/zoom', async (req, res) => {
     const customerUrl = `https://api.foxycart.com/customers/${fc_customer_id}?sso=true`;
     const customerData = await makeFoxyCartRequest('GET', customerUrl, accessToken, null, jwt);
 
-    if (!customerData || !customerData._embedded) {
-      console.error('Failed to fetch customer data');
+    if (!customerData) {
+      console.error('Failed to fetch customer data: No response');
       return res.status(404).json({ error: 'Failed to fetch customer data' });
     }
 
-    const customer = customerData._embedded['fx:customer'];
+    // Handle customer data which may or may not contain _embedded
+    const customer = customerData._embedded ? customerData._embedded['fx:customer'] : customerData;
+
+    if (!customer) {
+      console.error('Failed to fetch customer data: Customer not found in response');
+      return res.status(404).json({ error: 'Failed to fetch customer data' });
+    }
 
     // Step 2: Fetch customer transactions
     const transactionsUrl = `https://api.foxycart.com/stores/50526/transactions?customer_id=${fc_customer_id}&limit=6&zoom=items,items:item_options,items:item_category`;
