@@ -334,7 +334,6 @@ app.get('/foxycart/transactions', async (req, res) => {
 });
 
 
-
 app.post('/foxycart/customer/zoom', async (req, res) => {
   try {
     console.log('Incoming /zoom request body:', req.body);
@@ -403,7 +402,6 @@ app.post('/foxycart/customer/zoom', async (req, res) => {
     res.status(500).json({ error: 'Error fetching full customer data from FoxyCart API' });
   }
 });
-
 
 
 
