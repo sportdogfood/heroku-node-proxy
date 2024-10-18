@@ -386,12 +386,17 @@ app.post('/foxycart/customer/full-data', async (req, res) => {
       subscriptions: subscriptionsData
     };
 
+    // Store fullData in local storage as thisUserZoom
     res.json(fullData);
+    const fullDataString = JSON.stringify(fullData);
+    res.locals.localStorage.setItem('thisUserZoom', fullDataString);
+
   } catch (error) {
     console.error('Error fetching full customer data:', error);
     res.status(500).json({ error: 'Error fetching full customer data from FoxyCart API' });
   }
 });
+
 
 
 // Start the server
