@@ -333,7 +333,8 @@ app.get('/foxycart/transactions', async (req, res) => {
   }
 });
 
-// Route for zoom
+
+
 app.post('/foxycart/customer/zoom', async (req, res) => {
   try {
     console.log('Incoming /zoom request body:', req.body);
@@ -347,8 +348,9 @@ app.post('/foxycart/customer/zoom', async (req, res) => {
     const accessToken = await refreshToken();
 
     // Step 1: Fetch customer details with the provided JWT
-    const customerUrl = `https://api.foxycart.com/customers/${fc_customer_id}?sso=true`;
-    const customerData = await makeFoxyCartRequest('GET', customerUrl, accessToken, null, jwt);
+    
+    const customerUrl = `https://api.foxycart.com/customers/${fc_customer_id}?sso=true&zoom=default_billing_address,default_shipping_address,default_payment_method`;
+    const customerData = await makeFoxyCartRequest('GET', customerUrl, accessToken, { Authorization: `Bearer ${jwt}` }, jwt);
 
     if (!customerData) {
       console.error('Failed to fetch customer data: No response');
@@ -365,20 +367,20 @@ app.post('/foxycart/customer/zoom', async (req, res) => {
 
     // Step 2: Fetch customer transactions
     const transactionsUrl = `https://api.foxycart.com/stores/50526/transactions?customer_id=${fc_customer_id}&limit=6&zoom=items,items:item_options,items:item_category`;
-    const transactionsData = await makeFoxyCartRequest('GET', transactionsUrl, accessToken, null, jwt);
+    const transactionsData = await makeFoxyCartRequest('GET', transactionsUrl, accessToken, { Authorization: `Bearer ${jwt}` }, jwt);
 
-    if (!transactionsData || !transactionsData._embedded) {
-      console.error('Failed to fetch transactions');
-      return res.status(404).json({ error: 'Failed to fetch transactions' });
+    if (!transactionsData || !transactionsData._embedded || !transactionsData._embedded['fx:transaction']) {
+      console.error('Failed to fetch transactions or no transactions found');
+      return res.status(404).json({ error: 'Failed to fetch transactions or no transactions found' });
     }
 
     // Step 3: Fetch customer subscriptions
     const subscriptionsUrl = `https://api.foxycart.com/stores/50526/subscriptions?customer_id=${fc_customer_id}&limit=2`;
-    const subscriptionsData = await makeFoxyCartRequest('GET', subscriptionsUrl, accessToken, null, jwt);
+    const subscriptionsData = await makeFoxyCartRequest('GET', subscriptionsUrl, accessToken, { Authorization: `Bearer ${jwt}` }, jwt);
 
-    if (!subscriptionsData || !subscriptionsData._embedded) {
-      console.error('Failed to fetch subscriptions');
-      return res.status(404).json({ error: 'Failed to fetch subscriptions' });
+    if (!subscriptionsData || !subscriptionsData._embedded || !subscriptionsData._embedded['fx:subscription']) {
+      console.error('Failed to fetch subscriptions or no subscriptions found');
+      return res.status(404).json({ error: 'Failed to fetch subscriptions or no subscriptions found' });
     }
 
     // Combine all data into a single response
@@ -395,6 +397,7 @@ app.post('/foxycart/customer/zoom', async (req, res) => {
     res.status(500).json({ error: 'Error fetching full customer data from FoxyCart API' });
   }
 });
+
 
 
 
