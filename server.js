@@ -137,6 +137,139 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
   }
 });
 
+app.post('/foxycart/customer/zoom', async (req, res) => {
+  try {
+    const { email, jwt } = req.body;
+
+    if (!email || !jwt) {
+      return res.status(400).json({ error: 'Email and JWT are required' });
+    }
+
+    const accessToken = await refreshToken();
+
+    // Step 1: Fetch customer details with the provided JWT
+    const zoomParams = 'default_billing_address,default_shipping_address,default_payment_method';
+    const customerUrl = `https://api.foxycart.com/customers?email=${encodeURIComponent(email)}&zoom=${zoomParams}`;
+    const customerData = await makeFoxyCartRequest('GET', customerUrl, accessToken, null, jwt);
+
+    if (!customerData || !customerData._embedded || !customerData._embedded['fx:customer']) {
+      console.error('Failed to fetch customer data');
+      return res.status(404).json({ error: 'Failed to fetch customer data' });
+    }
+
+    const customer = customerData._embedded['fx:customer'];
+    const fc_customer_id = customer.id;
+
+    // Step 2: Fetch customer transactions
+    const transactionsUrl = `https://api.foxycart.com/stores/50526/transactions?customer_id=${fc_customer_id}&limit=6&zoom=items,items:item_options,items:item_category`;
+    const transactionsData = await makeFoxyCartRequest('GET', transactionsUrl, accessToken, null, jwt);
+
+    if (!transactionsData) {
+      console.error('Failed to fetch transactions');
+      return res.status(404).json({ error: 'Failed to fetch transactions' });
+    }
+
+    // Step 3: Fetch customer subscriptions
+    const subscriptionsUrl = `https://api.foxycart.com/stores/50526/subscriptions?customer_id=${fc_customer_id}&limit=2`;
+    const subscriptionsData = await makeFoxyCartRequest('GET', subscriptionsUrl, accessToken, null, jwt);
+
+    if (!subscriptionsData) {
+      console.error('Failed to fetch subscriptions');
+      return res.status(404).json({ error: 'Failed to fetch subscriptions' });
+    }
+
+    // Combine all data into a single response
+    const fullData = {
+      customer,
+      transactions: transactionsData,
+      subscriptions: subscriptionsData
+    };
+
+    // Respond with combined fullData
+    res.json(fullData);
+  } catch (error) {
+    console.error('Error fetching full customer data:', error);
+    res.status(500).json({ error: 'Error fetching full customer data from FoxyCart API' });
+  }
+});
+
+app.post('/foxycart/customer/azoom', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    // Get a new FoxyCart access token
+    const accessToken = await refreshToken();
+    const apiUrl = `https://secure.sportdogfood.com/s/customer/authenticate`;
+
+    // Make the request to FoxyCart for customer authentication
+    const authData = await makeFoxyCartRequest('POST', apiUrl, accessToken, { email, password });
+
+    // Log the entire response for debugging
+    console.log('Authentication response from FoxyCart:', JSON.stringify(authData, null, 2));
+
+    // Check if the response contains the necessary session details
+    if (authData && authData.session_token && authData.jwt && authData.sso) {
+      // Authentication succeeded, fetch full customer data automatically
+      const jwt = authData.jwt;
+
+      // Step 1: Fetch customer details with the provided JWT
+      const zoomParams = 'default_billing_address,default_shipping_address,default_payment_method';
+      const customerUrl = `https://api.foxycart.com/customers?email=${encodeURIComponent(email)}&zoom=${zoomParams}`;
+      const customerData = await makeFoxyCartRequest('GET', customerUrl, accessToken, null, jwt);
+
+      if (!customerData || !customerData._embedded || !customerData._embedded['fx:customer']) {
+        console.error('Failed to fetch customer data');
+        return res.status(404).json({ error: 'Failed to fetch customer data' });
+      }
+
+      const customer = customerData._embedded['fx:customer'];
+      const fc_customer_id = customer.id;
+
+      // Step 2: Fetch customer transactions
+      const transactionsUrl = `https://api.foxycart.com/stores/50526/transactions?customer_id=${fc_customer_id}&limit=6&zoom=items,items:item_options,items:item_category`;
+      const transactionsData = await makeFoxyCartRequest('GET', transactionsUrl, accessToken, null, jwt);
+
+      if (!transactionsData) {
+        console.error('Failed to fetch transactions');
+        return res.status(404).json({ error: 'Failed to fetch transactions' });
+      }
+
+      // Step 3: Fetch customer subscriptions
+      const subscriptionsUrl = `https://api.foxycart.com/stores/50526/subscriptions?customer_id=${fc_customer_id}&limit=2`;
+      const subscriptionsData = await makeFoxyCartRequest('GET', subscriptionsUrl, accessToken, null, jwt);
+
+      if (!subscriptionsData) {
+        console.error('Failed to fetch subscriptions');
+        return res.status(404).json({ error: 'Failed to fetch subscriptions' });
+      }
+
+      // Combine all data into a single response
+      const fullData = {
+        customer,
+        transactions: transactionsData,
+        subscriptions: subscriptionsData
+      };
+
+      // Respond with combined fullData
+      res.json(fullData);
+    } else {
+      // If authentication fails, log and return a 401 error
+      console.error('Authentication failed, invalid response:', JSON.stringify(authData));
+      res.status(401).json({ error: 'Authentication failed. Invalid email or password.' });
+    }
+  } catch (error) {
+    // Log any errors that occur during the process
+    console.error('Error authenticating customer:', error);
+
+    // Return a 500 error with a generic message
+    res.status(500).json({ error: 'Error authenticating customer from FoxyCart API' });
+  }
+});
+
 // Proxy route for calling FoxyCart API to fetch customer details by ID
 app.get('/foxycart/customers/:id', async (req, res) => {
   try {
@@ -332,49 +465,38 @@ app.get('/foxycart/transactions', async (req, res) => {
 
 app.post('/foxycart/customer/full-data', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Step 1: Authenticate the customer and get JWT and customer ID
+    // Step 1: Fetch customer details without authentication
     const accessToken = await refreshToken();
-    const authenticateUrl = `https://secure.sportdogfood.com/s/customer/authenticate`;
-    $1
-    console.log('Authentication Data received:', JSON.stringify(authData));
-
-    // Adjusted this check to match the current structure of authData
-    if (!authData || !authData.session_token || !authData.jwt || !authData.fc_customer_id || !authData.session_token.trim() || !authData.jwt.trim() || !authData.fc_customer_id.trim()) {
-      console.error('Authentication failed, invalid response:', JSON.stringify(authData));
-      return res.status(401).json({ error: 'Authentication failed. Invalid email or password.' });
-    }
-
-    const jwt = authData.jwt;
-    const fc_customer_id = authData.fc_customer_id;
-
-    // Step 2: Fetch customer details
     const zoomParams = 'default_billing_address,default_shipping_address,default_payment_method';
-    const customerUrl = `https://api.foxycart.com/customers/${fc_customer_id}?sso=true&zoom=${zoomParams}`;
-    const customerData = await makeFoxyCartRequest('GET', customerUrl, accessToken, null, jwt);
+    const customerUrl = `https://api.foxycart.com/customers?email=${encodeURIComponent(email)}&zoom=${zoomParams}`;
+    const customerData = await makeFoxyCartRequest('GET', customerUrl, accessToken);
 
-    if (!customerData) {
+    if (!customerData || !customerData._embedded || !customerData._embedded['fx:customer']) {
       console.error('Failed to fetch customer data');
       return res.status(404).json({ error: 'Failed to fetch customer data' });
     }
 
-    // Step 3: Fetch customer transactions
+    const customer = customerData._embedded['fx:customer'];
+    const fc_customer_id = customer.id;
+
+    // Step 2: Fetch customer transactions
     const transactionsUrl = `https://api.foxycart.com/stores/50526/transactions?customer_id=${fc_customer_id}&limit=6&zoom=items,items:item_options,items:item_category`;
-    const transactionsData = await makeFoxyCartRequest('GET', transactionsUrl, accessToken, null, jwt);
+    const transactionsData = await makeFoxyCartRequest('GET', transactionsUrl, accessToken);
 
     if (!transactionsData) {
       console.error('Failed to fetch transactions');
       return res.status(404).json({ error: 'Failed to fetch transactions' });
     }
 
-    // Step 4: Fetch customer subscriptions
+    // Step 3: Fetch customer subscriptions
     const subscriptionsUrl = `https://api.foxycart.com/stores/50526/subscriptions?customer_id=${fc_customer_id}&limit=2`;
-    const subscriptionsData = await makeFoxyCartRequest('GET', subscriptionsUrl, accessToken, null, jwt);
+    const subscriptionsData = await makeFoxyCartRequest('GET', subscriptionsUrl, accessToken);
 
     if (!subscriptionsData) {
       console.error('Failed to fetch subscriptions');
@@ -383,21 +505,18 @@ app.post('/foxycart/customer/full-data', async (req, res) => {
 
     // Combine all data into a single response
     const fullData = {
-      customer: customerData,
+      customer,
       transactions: transactionsData,
-      subscriptions: subscriptionsData,
-      authData: { jwt, session_token: authData.session_token, fc_customer_id } // Including authentication data in response
+      subscriptions: subscriptionsData
     };
 
     // Respond with combined fullData
     res.json(fullData);
-  
   } catch (error) {
     console.error('Error fetching full customer data:', error);
     res.status(500).json({ error: 'Error fetching full customer data from FoxyCart API' });
   }
 });
-
 
 
 
