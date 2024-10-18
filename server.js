@@ -383,19 +383,19 @@ app.post('/foxycart/customer/full-data', async (req, res) => {
     const fullData = {
       customer: customerData,
       transactions: transactionsData,
-      subscriptions: subscriptionsData
+      subscriptions: subscriptionsData,
+      authData: { jwt, session_token: authData.session_token, fc_customer_id } // Including authentication data in response
     };
 
-    // Store fullData in local storage as thisUserZoom
+    // Respond with combined fullData
     res.json(fullData);
-   
-   
-
+  
   } catch (error) {
     console.error('Error fetching full customer data:', error);
     res.status(500).json({ error: 'Error fetching full customer data from FoxyCart API' });
   }
 });
+
 
 
 
