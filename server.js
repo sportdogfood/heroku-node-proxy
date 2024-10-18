@@ -341,10 +341,11 @@ app.post('/foxycart/customer/full-data', async (req, res) => {
     // Step 1: Authenticate the customer and get JWT and customer ID
     const accessToken = await refreshToken();
     const authenticateUrl = `https://secure.sportdogfood.com/s/customer/authenticate`;
-    const authData = await makeFoxyCartRequest('POST', authenticateUrl, accessToken, { email, password });
+    $1
+    console.log('Authentication Data received:', JSON.stringify(authData));
 
     // Adjusted this check to match the current structure of authData
-    if (!authData || !authData.session_token || !authData.jwt || !authData.fc_customer_id) {
+    if (!authData || !authData.session_token || !authData.jwt || !authData.fc_customer_id || !authData.session_token.trim() || !authData.jwt.trim() || !authData.fc_customer_id.trim()) {
       console.error('Authentication failed, invalid response:', JSON.stringify(authData));
       return res.status(401).json({ error: 'Authentication failed. Invalid email or password.' });
     }
@@ -396,6 +397,7 @@ app.post('/foxycart/customer/full-data', async (req, res) => {
     res.status(500).json({ error: 'Error fetching full customer data from FoxyCart API' });
   }
 });
+
 
 
 
