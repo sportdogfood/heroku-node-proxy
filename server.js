@@ -389,7 +389,7 @@ app.post('/foxycart/customer/full-data', async (req, res) => {
     // Store fullData in local storage as thisUserZoom
     res.json(fullData);
     const fullDataString = JSON.stringify(fullData);
-    res.locals.localStorage.setItem('thisUserZoom', fullDataString);
+   
 
   } catch (error) {
     console.error('Error fetching full customer data:', error);
