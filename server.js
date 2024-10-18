@@ -343,13 +343,13 @@ app.post('/foxycart/customer/full-data', async (req, res) => {
     const authenticateUrl = `https://secure.sportdogfood.com/s/customer/authenticate`;
     const authData = await makeFoxyCartRequest('POST', authenticateUrl, accessToken, { email, password });
 
-    if (!authData || !authData.session_token || !authData.jwt || !authData.sso) {
+    if (!authData || !authData.session_token || !authData.jwt || !authData.fc_customer_id) {
       console.error('Authentication failed, invalid response:', JSON.stringify(authData));
       return res.status(401).json({ error: 'Authentication failed. Invalid email or password.' });
     }
 
     const jwt = authData.jwt;
-    const fc_customer_id = new URLSearchParams(new URL(authData.sso).search).get('fc_customer_id');
+    const fc_customer_id = authData.fc_customer_id;
 
     // Step 2: Fetch customer details
     const zoomParams = 'default_billing_address,default_shipping_address,default_payment_method';
