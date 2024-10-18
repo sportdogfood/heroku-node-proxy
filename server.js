@@ -343,6 +343,7 @@ app.post('/foxycart/customer/full-data', async (req, res) => {
     const authenticateUrl = `https://secure.sportdogfood.com/s/customer/authenticate`;
     const authData = await makeFoxyCartRequest('POST', authenticateUrl, accessToken, { email, password });
 
+    // Adjusted this check to match the current structure of authData
     if (!authData || !authData.session_token || !authData.jwt || !authData.fc_customer_id) {
       console.error('Authentication failed, invalid response:', JSON.stringify(authData));
       return res.status(401).json({ error: 'Authentication failed. Invalid email or password.' });
