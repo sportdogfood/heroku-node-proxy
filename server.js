@@ -335,26 +335,24 @@ app.get('/foxycart/transactions', async (req, res) => {
 
 app.post('/foxycart/customer/zoom', async (req, res) => {
   try {
-    const { email, jwt } = req.body;
+    const { fc_customer_id, jwt } = req.body;
 
-    if (!email || !jwt) {
-      return res.status(400).json({ error: 'Email and JWT are required' });
+    if (!fc_customer_id || !jwt) {
+      return res.status(400).json({ error: 'Customer ID and JWT are required' });
     }
 
     const accessToken = await refreshToken();
 
     // Step 1: Fetch customer details with the provided JWT
-    const zoomParams = 'default_billing_address,default_shipping_address,default_payment_method';
-    const customerUrl = `https://api.foxycart.com/customers?email=${encodeURIComponent(email)}&zoom=${zoomParams}`;
+    const customerUrl = `https://api.foxycart.com/customers/${fc_customer_id}?sso=true`;
     const customerData = await makeFoxyCartRequest('GET', customerUrl, accessToken, null, jwt);
 
-    if (!customerData || !customerData._embedded || !customerData._embedded['fx:customer']) {
+    if (!customerData || !customerData._embedded) {
       console.error('Failed to fetch customer data');
       return res.status(404).json({ error: 'Failed to fetch customer data' });
     }
 
     const customer = customerData._embedded['fx:customer'];
-    const fc_customer_id = customer.id;
 
     // Step 2: Fetch customer transactions
     const transactionsUrl = `https://api.foxycart.com/stores/50526/transactions?customer_id=${fc_customer_id}&limit=6&zoom=items,items:item_options,items:item_category`;
