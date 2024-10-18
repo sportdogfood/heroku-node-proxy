@@ -333,9 +333,9 @@ app.get('/foxycart/transactions', async (req, res) => {
   }
 });
 
+// Route for zoom
 app.post('/foxycart/customer/zoom', async (req, res) => {
   try {
-    // Log the request body for debugging
     console.log('Incoming /zoom request body:', req.body);
 
     const { fc_customer_id, jwt } = req.body;
@@ -355,8 +355,8 @@ app.post('/foxycart/customer/zoom', async (req, res) => {
       return res.status(404).json({ error: 'Failed to fetch customer data' });
     }
 
-    // Handle customer data which may or may not contain _embedded
-    const customer = customerData._embedded ? customerData._embedded['fx:customer'] : customerData;
+    // Customer data is directly in the response root, not under `_embedded`
+    const customer = customerData;
 
     if (!customer) {
       console.error('Failed to fetch customer data: Customer not found in response');
@@ -395,6 +395,7 @@ app.post('/foxycart/customer/zoom', async (req, res) => {
     res.status(500).json({ error: 'Error fetching full customer data from FoxyCart API' });
   }
 });
+
 
 
 
