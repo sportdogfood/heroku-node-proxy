@@ -387,6 +387,92 @@ app.post('/foxycart/customer/zoom', async (req, res) => {
   }
 });
 
+app.post('/foxycart/customer/fetch_customer', async (req, res) => {
+  try {
+    console.log('Incoming /fetch request body:', req.body);
+
+    const { fc_customer_id, jwt } = req.body;
+
+    if (!fc_customer_id || !jwt) {
+      return res.status(400).json({ error: 'Customer ID and JWT are required' });
+    }
+
+    const accessToken = await refreshToken();
+
+    // Fetch customer details with the provided JWT
+    const customerUrl = `https://api.foxycart.com/customers/${fc_customer_id}?sso=true`;
+    const customerData = await makeFoxyCartRequest('GET', customerUrl, accessToken, null);
+
+    if (!customerData) {
+      console.error('Failed to fetch customer data: No response');
+      return res.status(404).json({ error: 'Failed to fetch customer data' });
+    }
+
+    // Respond with customer data
+    res.json(customerData);
+  } catch (error) {
+    console.error('Error fetching customer data:', error);
+    res.status(500).json({ error: 'Error fetching customer data from FoxyCart API' });
+  }
+});
+
+app.post('/foxycart/customer/fetch_transactions', async (req, res) => {
+  try {
+    console.log('Incoming /transactions request body:', req.body);
+
+    const { fc_customer_id } = req.body;
+
+    if (!fc_customer_id) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    const accessToken = await refreshToken();
+
+    // Fetch customer transactions
+    const transactionsUrl = `https://api.foxycart.com/stores/50526/transactions?customer_id=${fc_customer_id}&limit=6&zoom=items,items:item_options,items:item_category`;
+    const transactionsData = await makeFoxyCartRequest('GET', transactionsUrl, accessToken);
+
+    if (!transactionsData || !transactionsData._embedded || !transactionsData._embedded['fx:transaction']) {
+      console.error('Failed to fetch transactions or no transactions found');
+      return res.status(404).json({ error: 'Failed to fetch transactions or no transactions found' });
+    }
+
+    // Respond with transactions data
+    res.json(transactionsData._embedded['fx:transaction']);
+  } catch (error) {
+    console.error('Error fetching transactions data:', error);
+    res.status(500).json({ error: 'Error fetching transactions data from FoxyCart API' });
+  }
+});
+
+app.post('/foxycart/customer/fetch_subscriptions', async (req, res) => {
+  try {
+    console.log('Incoming /subscriptions request body:', req.body);
+
+    const { fc_customer_id } = req.body;
+
+    if (!fc_customer_id) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    const accessToken = await refreshToken();
+
+    // Fetch customer subscriptions
+    const subscriptionsUrl = `https://api.foxycart.com/stores/50526/subscriptions?customer_id=${fc_customer_id}&limit=2`;
+    const subscriptionsData = await makeFoxyCartRequest('GET', subscriptionsUrl, accessToken);
+
+    if (!subscriptionsData || !subscriptionsData._embedded || !subscriptionsData._embedded['fx:subscription']) {
+      console.error('Failed to fetch subscriptions or no subscriptions found');
+      return res.status(404).json({ error: 'Failed to fetch subscriptions or no subscriptions found' });
+    }
+
+    // Respond with subscriptions data
+    res.json(subscriptionsData._embedded['fx:subscription']);
+  } catch (error) {
+    console.error('Error fetching subscriptions data:', error);
+    res.status(500).json({ error: 'Error fetching subscriptions data from FoxyCart API' });
+  }
+});
 
 
 
