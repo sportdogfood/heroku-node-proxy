@@ -360,7 +360,7 @@ app.post('/foxycart/customer/zoom', async (req, res) => {
     const transactionsUrl = `https://api.foxycart.com/stores/50526/transactions?customer_id=${fc_customer_id}&limit=6&zoom=items,items:item_options,items:item_category`;
     const transactionsData = await makeFoxyCartRequest('GET', transactionsUrl, accessToken, null, jwt);
 
-    if (!transactionsData) {
+    if (!transactionsData || !transactionsData._embedded) {
       console.error('Failed to fetch transactions');
       return res.status(404).json({ error: 'Failed to fetch transactions' });
     }
@@ -369,7 +369,7 @@ app.post('/foxycart/customer/zoom', async (req, res) => {
     const subscriptionsUrl = `https://api.foxycart.com/stores/50526/subscriptions?customer_id=${fc_customer_id}&limit=2`;
     const subscriptionsData = await makeFoxyCartRequest('GET', subscriptionsUrl, accessToken, null, jwt);
 
-    if (!subscriptionsData) {
+    if (!subscriptionsData || !subscriptionsData._embedded) {
       console.error('Failed to fetch subscriptions');
       return res.status(404).json({ error: 'Failed to fetch subscriptions' });
     }
@@ -377,8 +377,8 @@ app.post('/foxycart/customer/zoom', async (req, res) => {
     // Combine all data into a single response
     const fullData = {
       customer,
-      transactions: transactionsData,
-      subscriptions: subscriptionsData
+      transactions: transactionsData._embedded['fx:transaction'] || [],
+      subscriptions: subscriptionsData._embedded['fx:subscription'] || []
     };
 
     // Respond with combined fullData
@@ -388,7 +388,6 @@ app.post('/foxycart/customer/zoom', async (req, res) => {
     res.status(500).json({ error: 'Error fetching full customer data from FoxyCart API' });
   }
 });
-
 
 
 
