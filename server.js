@@ -348,8 +348,7 @@ app.post('/foxycart/customer/zoom', async (req, res) => {
     const accessToken = await refreshToken();
 
     // Step 1: Fetch customer details with the provided JWT
-    
-    const customerUrl = `https://api.foxycart.com/customers/${fc_customer_id}?sso=true&zoom=default_billing_address,default_shipping_address,default_payment_method`;
+    const customerUrl = `https://api.foxycart.com/customers/${fc_customer_id}?sso=true`;
     const customerData = await makeFoxyCartRequest('GET', customerUrl, accessToken, { Authorization: `Bearer ${jwt}` }, jwt);
 
     if (!customerData) {
@@ -397,7 +396,6 @@ app.post('/foxycart/customer/zoom', async (req, res) => {
     res.status(500).json({ error: 'Error fetching full customer data from FoxyCart API' });
   }
 });
-
 
 
 
