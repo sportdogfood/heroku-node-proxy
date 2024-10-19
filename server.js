@@ -170,6 +170,35 @@ app.get('/foxycart/customers/:id', async (req, res) => {
   }
 });
 
+// Proxy route for calling FoxyCart API to fetch customer details by ID
+app.get('/foxycart/customers/foxyapi/:id', async (req, res) => {
+  try {
+    const customerId = req.params.id;
+
+    if (!customerId) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    // Get a new FoxyCart access token
+    const accessToken = await refreshToken();
+    const apiUrl = `https://api.foxycart.com/customers/${customerId}?sso=true`;
+
+    // Use the helper function to make the request
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    // Check if data is returned successfully
+    if (data) {
+      res.json(data);
+    } else {
+      res.status(404).json({ error: 'Customer not found or no data returned.' });
+    }
+  } catch (error) {
+    // Log any errors that occur
+    console.error('Error fetching customer data:', error);
+    res.status(500).json({ error: 'Failed to retrieve customer data from FoxyCart API' });
+  }
+});
+
 // Route for fetching customer subscriptions
 app.get('/foxycart/subscriptions', async (req, res) => {
   try {
@@ -333,59 +362,6 @@ app.get('/foxycart/transactions', async (req, res) => {
   }
 });
 
-app.post('/foxycart/customer/zoom', async (req, res) => {
-  try {
-    console.log('Incoming /zoom request body:', req.body);
-
-    const { fc_customer_id, jwt } = req.body;
-
-    if (!fc_customer_id || !jwt) {
-      return res.status(400).json({ error: 'Customer ID and JWT are required' });
-    }
-
-    const accessToken = await refreshToken();
-
-    // Step 1: Fetch customer details using JWT
-    const customerUrl = `https://api.foxycart.com/customers/${fc_customer_id}?sso=true`;
-    const customerData = await makeFoxyCartRequest('GET', customerUrl, accessToken, null);
-
-    if (!customerData) {
-      console.error('Failed to fetch customer data: No response');
-      return res.status(404).json({ error: 'Failed to fetch customer data' });
-    }
-
-    // Step 2: Fetch customer transactions using access token (not JWT)
-    const transactionsUrl = `https://api.foxycart.com/stores/50526/transactions?customer_id=${fc_customer_id}&limit=2&zoom=items,items:item_options,items:item_category`;
-    const transactionsData = await makeFoxyCartRequest('GET', transactionsUrl, accessToken);
-
-    if (!transactionsData || !transactionsData._embedded || !transactionsData._embedded['fx:transaction']) {
-      console.error('Failed to fetch transactions or no transactions found');
-      return res.status(404).json({ error: 'Failed to fetch transactions or no transactions found' });
-    }
-
-    // Step 3: Fetch customer subscriptions using access token (not JWT)
-    const subscriptionsUrl = `https://api.foxycart.com/stores/50526/subscriptions?customer_id=${fc_customer_id}&limit=2`;
-    const subscriptionsData = await makeFoxyCartRequest('GET', subscriptionsUrl, accessToken);
-
-    if (!subscriptionsData || !subscriptionsData._embedded || !subscriptionsData._embedded['fx:subscription']) {
-      console.error('Failed to fetch subscriptions or no subscriptions found');
-      return res.status(404).json({ error: 'Failed to fetch subscriptions or no subscriptions found' });
-    }
-
-    // Combine all data into a single response
-    const fullData = {
-      customer: customerData,
-      transactions: transactionsData._embedded['fx:transaction'] || [],
-      subscriptions: subscriptionsData._embedded['fx:subscription'] || []
-    };
-
-    // Respond with combined fullData
-    res.json(fullData);
-  } catch (error) {
-    console.error('Error fetching full customer data:', error);
-    res.status(500).json({ error: 'Error fetching full customer data from FoxyCart API' });
-  }
-});
 
 app.post('/foxycart/customer/fetch_customer', async (req, res) => {
   try {
