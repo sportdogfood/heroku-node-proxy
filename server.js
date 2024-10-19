@@ -202,27 +202,33 @@ app.get('/foxycart/customers/foxyapi/:id', async (req, res) => {
 // Route for fetching customer subscriptions
 app.get('/foxycart/subscriptions', async (req, res) => {
   try {
+    // Extract customer_id from query parameters
     const { customer_id } = req.query;
 
+    // Validate that customer_id is provided
     if (!customer_id) {
       return res.status(400).json({ error: 'Customer ID is required' });
     }
 
     console.log('Received customer_id:', customer_id); // Log customer_id for debugging
 
+    // Refresh the access token before making the request
     const accessToken = await refreshToken();
     console.log('Access token:', accessToken); // Log accessToken for debugging
 
-    const apiUrl = `https://api.foxycart.com/stores/50526/subscriptions?customer_id=${customer_id}&limit=10`;
+    // Construct the FoxyCart API URL
+    const apiUrl = `https://api.foxycart.com/stores/50526/subscriptions?customer_id=${customer_id}&is_active=true`;
     console.log(`Fetching subscriptions for customer ID: ${customer_id} with URL: ${apiUrl}`);
 
+    // Make request to FoxyCart API
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
-    console.log('Raw data from FoxyCart API:', data); // Log raw data
+    console.log('Raw data from FoxyCart API:', JSON.stringify(data, null, 2)); // Log raw data for clarity
 
+    // Check for embedded subscriptions in the response
     if (data._embedded && data._embedded['fx:subscriptions']) {
-      // Filter subscriptions to include only active ones (isActive = true)
+      // Filter subscriptions to include only active ones
       const activeSubscriptions = data._embedded['fx:subscriptions'].filter(sub => sub.is_active === true);
-      
+
       if (activeSubscriptions.length > 0) {
         res.json(activeSubscriptions);
       } else {
@@ -236,6 +242,7 @@ app.get('/foxycart/subscriptions', async (req, res) => {
     res.status(500).json({ error: 'Error fetching customer subscriptions from FoxyCart API' });
   }
 });
+
 
 app.get('/foxycart/carts/:cart_id/items', async (req, res) => {
   try {
