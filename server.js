@@ -202,7 +202,8 @@ app.get('/foxycart/customers/foxyapi/:id', async (req, res) => {
 // Proxy route for calling FoxyCart API to search customer details by email
 app.get('/foxycart/customers/searchbyEmail', async (req, res) => {
   try {
-    const email = req.query.email; // Use query parameter to get the email address
+    // Extract email address from query parameter
+    const email = req.query.email;
 
     if (!email) {
       return res.status(400).json({ error: 'Email address is required' });
@@ -211,31 +212,32 @@ app.get('/foxycart/customers/searchbyEmail', async (req, res) => {
     // Get a new FoxyCart access token
     const accessToken = await refreshToken();
 
-    // Construct the API URL for searching customers by email
-    const storeId = '50526'; // Replace with your actual store ID
-    const apiUrl = `https://api.foxycart.com/stores/${storeId}/customers?filter=email eq "${email}"`;
+    // Construct the API URL for searching customers by email (store ID hardcoded as 50526)
+    const encodedEmail = encodeURIComponent(email);
+    const apiUrl = `https://api.foxycart.com/stores/50526/customers?email=${encodedEmail}`;
 
     // Use the helper function to make the request
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
 
     // Check if data is returned successfully
-    if (data && data._embedded && data._embedded['fx:customers']) {
+    if (data && data._embedded && data._embedded['fx:customers'] && data._embedded['fx:customers'].length > 0) {
+      // Extract customers from the embedded data
       const customers = data._embedded['fx:customers'];
-
-      if (customers.length > 0) {
-        res.json(customers);
-      } else {
-        res.status(404).json({ error: 'No customer found with the given email address.' });
-      }
+      res.json(customers);
+    } else if (data && data.total_items === 0) {
+      // If total_items is zero, no customer was found
+      res.status(404).json({ error: 'No customer found with the given email address.' });
     } else {
+      // Unexpected case where no customer data is returned
       res.status(404).json({ error: 'No customer found or no data returned.' });
     }
   } catch (error) {
-    // Log any errors that occur
+    // Log any errors that occur during the request
     console.error('Error searching for customer by email:', error);
     res.status(500).json({ error: 'Failed to search for customer data from FoxyCart API' });
   }
 });
+
 
 // Route for fetching customer subscriptions
 app.get('/foxycart/subscriptions', async (req, res) => {
