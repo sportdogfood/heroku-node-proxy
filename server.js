@@ -291,7 +291,89 @@ app.get('/foxycart/customers/byCustomerId', async (req, res) => {
 });
 
 
+// New route for forgot password
+app.post('/foxycart/customer/forgot_password', async (req, res) => {
+  const { email } = req.body;
 
+  // Check if email is provided
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  try {
+    const url = 'https://secure.sportdogfood.com/s/customer/forgot_password';
+    
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${await getCachedOrNewAccessToken()}` // Use cached or new token
+    };
+
+    // Payload to send with the email
+    const body = JSON.stringify({ email });
+
+    // Make the POST request to the forgot_password API
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: headers,
+      body: body
+    });
+
+    if (response.ok) {
+      const responseData = await response.json();
+      return res.status(200).json({
+        message: 'Password reset email sent successfully.',
+        data: responseData
+      });
+    } else {
+      const errorText = await response.text();
+      return res.status(response.status).json({
+        error: `Failed to send password reset email: ${response.statusText}`,
+        details: errorText
+      });
+    }
+  } catch (error) {
+    console.error('Error in /foxycart/customer/forgot_password:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// New route for updating the customer's password
+app.patch('/foxycart/customers/update-password/:customerId', async (req, res) => {
+  try {
+    const { customerId } = req.params;
+    const { newPassword } = req.body;
+
+    // Check if customerId and newPassword are provided
+    if (!customerId || !newPassword) {
+      return res.status(400).json({ error: 'Customer ID and new password are required' });
+    }
+
+    // Get a cached or refreshed FoxyCart access token
+    const accessToken = await getCachedOrNewAccessToken();
+
+    // FoxyCart API URL for updating the password
+    const apiUrl = `https://api.foxycart.com/customers/${customerId}`;
+
+    // Construct the payload with the new password
+    const body = {
+      password: newPassword
+    };
+
+    // Make the PATCH request to FoxyCart API to update the password
+    const data = await makeFoxyCartRequest('PATCH', apiUrl, accessToken, body);
+
+    // Log the response data for debugging
+    console.log('Password update response:', JSON.stringify(data, null, 2));
+
+    // If the request was successful, respond with success message
+    return res.status(200).json({ message: 'Password updated successfully', data });
+
+  } catch (error) {
+    // Handle any errors during the process
+    console.error('Error updating customer password:', error);
+    res.status(500).json({ error: 'Failed to update customer password' });
+  }
+});
 
 // Route for fetching customer subscriptions
 app.get('/foxycart/subscriptions', async (req, res) => {
