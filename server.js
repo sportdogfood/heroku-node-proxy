@@ -200,21 +200,25 @@ app.get('/foxycart/customers/foxyapi/:id', async (req, res) => {
 });
 
 
-
 // New route for direct email search 
 app.get('/foxycart/customers/find', async (req, res) => { 
   try {
-    const email = req.query.email || 'deenzrn@yahoo.com';  // Use provided email or fallback to the specific one
+    // Extract the email from the query or use a default
+    const email = req.query.email || 'deenzrn@yahoo.com';
+    
     if (!email) {
       return res.status(400).json({ error: 'Email address is required' });
     }
 
-    const accessToken = await getCachedOrNewAccessToken();  // Get access token from cache or refresh
+    // Get a new or cached FoxyCart access token
+    const accessToken = await getCachedOrNewAccessToken();
     const encodedEmail = encodeURIComponent(email);
     const apiUrl = `https://api.foxycart.com/stores/50526/customers?email=${encodedEmail}`;
 
+    // Use the helper function to make the request
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
 
+    // Handle the response from FoxyCart API
     if (data && data._embedded && data._embedded['fx:customers'] && data._embedded['fx:customers'].length > 0) {
       const customers = data._embedded['fx:customers'];
       return res.json(customers);  // Return customers if found
@@ -224,67 +228,11 @@ app.get('/foxycart/customers/find', async (req, res) => {
       return res.status(404).json({ error: 'No customer found or no data returned.' });
     }
   } catch (error) {
+    // Log the error and return a 500 error response
     console.error('Error searching for customer by email (direct):', error);
     return res.status(500).json({ error: 'Failed to search for customer data from FoxyCart API' });
   }
 });
-
-
-/// Proxy route for calling FoxyCart API to search customer details by email
-app.get('/foxycart/customers/searchbyEmail', async (req, res) => {
-  try {
-    // Extract email address from query parameter
-    const email = req.query.email;
-
-    if (!email) {
-      return res.status(400).json({ error: 'Email address is required' });
-    }
-
-    // Get a new FoxyCart access token (cached and refreshed only when needed)
-    const accessToken = await getCachedOrNewAccessToken();
-
-    // Construct the API URL for searching customers by email (store ID hardcoded as 50526)
-    const encodedEmail = encodeURIComponent(email);
-    const apiUrl = `https://api.foxycart.com/stores/50526/customers?filter[email]=${encodedEmail}`;
-
-    // Use the helper function to make the request
-    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
-
-    // Check if data is returned successfully
-    if (data && data._embedded && data._embedded['fx:customers'] && data._embedded['fx:customers'].length > 0) {
-      // Extract customers from the embedded data
-      const customers = data._embedded['fx:customers'];
-      return res.json(customers);
-    } else if (data && data.total_items === 0) {
-      // If total_items is zero, no customer was found
-      return res.status(404).json({ error: 'No customer found with the given email address.' });
-    } else {
-      // Unexpected case where no customer data is returned
-      return res.status(404).json({ error: 'No customer found or no data returned.' });
-    }
-  } catch (error) {
-    // Log any errors that occur during the request with more details
-    console.error('Error searching for customer by email:', error.message || error);
-    return res.status(500).json({ error: 'Failed to search for customer data from FoxyCart API' });
-  }
-});
-
-// Helper function to get a cached or new access token
-async function getCachedOrNewAccessToken() {
-  if (!global.accessToken || tokenIsExpired(global.accessToken)) {
-    // Fetch a new token if no valid token is stored
-    global.accessToken = await refreshToken();
-  }
-  return global.accessToken;
-}
-
-// Helper function to check if token is expired
-function tokenIsExpired(token) {
-  // You can implement your own logic to determine token expiration (e.g., expiry timestamp)
-  // For simplicity, assuming you store an expiry time along with the token
-  return !token || token.expires_at < Date.now();
-}
-
 
 
 // Route for fetching customer subscriptions
