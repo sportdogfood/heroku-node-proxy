@@ -199,7 +199,7 @@ app.get('/foxycart/customers/foxyapi/:id', async (req, res) => {
   }
 });
 
-// Proxy route for calling FoxyCart API to search customer details by email
+/// Proxy route for calling FoxyCart API to search customer details by email
 app.get('/foxycart/customers/searchbyEmail', async (req, res) => {
   try {
     // Extract email address from query parameter
@@ -209,12 +209,12 @@ app.get('/foxycart/customers/searchbyEmail', async (req, res) => {
       return res.status(400).json({ error: 'Email address is required' });
     }
 
-    // Get a new FoxyCart access token
-    const accessToken = await refreshToken();
+    // Get a new FoxyCart access token (cached and refreshed only when needed)
+    const accessToken = await getCachedOrNewAccessToken();
 
     // Construct the API URL for searching customers by email (store ID hardcoded as 50526)
     const encodedEmail = encodeURIComponent(email);
-    const apiUrl = `https://api.foxycart.com/stores/50526/customers?email=${encodedEmail}`;
+    const apiUrl = `https://api.foxycart.com/stores/50526/customers?filter[email]=${encodedEmail}`;
 
     // Use the helper function to make the request
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
@@ -223,20 +223,37 @@ app.get('/foxycart/customers/searchbyEmail', async (req, res) => {
     if (data && data._embedded && data._embedded['fx:customers'] && data._embedded['fx:customers'].length > 0) {
       // Extract customers from the embedded data
       const customers = data._embedded['fx:customers'];
-      res.json(customers);
+      return res.json(customers);
     } else if (data && data.total_items === 0) {
       // If total_items is zero, no customer was found
-      res.status(404).json({ error: 'No customer found with the given email address.' });
+      return res.status(404).json({ error: 'No customer found with the given email address.' });
     } else {
       // Unexpected case where no customer data is returned
-      res.status(404).json({ error: 'No customer found or no data returned.' });
+      return res.status(404).json({ error: 'No customer found or no data returned.' });
     }
   } catch (error) {
-    // Log any errors that occur during the request
-    console.error('Error searching for customer by email:', error);
-    res.status(500).json({ error: 'Failed to search for customer data from FoxyCart API' });
+    // Log any errors that occur during the request with more details
+    console.error('Error searching for customer by email:', error.message || error);
+    return res.status(500).json({ error: 'Failed to search for customer data from FoxyCart API' });
   }
 });
+
+// Helper function to get a cached or new access token
+async function getCachedOrNewAccessToken() {
+  if (!global.accessToken || tokenIsExpired(global.accessToken)) {
+    // Fetch a new token if no valid token is stored
+    global.accessToken = await refreshToken();
+  }
+  return global.accessToken;
+}
+
+// Helper function to check if token is expired
+function tokenIsExpired(token) {
+  // You can implement your own logic to determine token expiration (e.g., expiry timestamp)
+  // For simplicity, assuming you store an expiry time along with the token
+  return !token || token.expires_at < Date.now();
+}
+
 
 
 // Route for fetching customer subscriptions
