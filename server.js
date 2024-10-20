@@ -199,51 +199,25 @@ app.get('/foxycart/customers/foxyapi/:id', async (req, res) => {
   }
 });
 
-// Existing route for filter[email] search
-app.get('/foxycart/customers/searchbyEmail', async (req, res) => {
+
+
+// New route for direct email search 
+app.get('/foxycart/customers/find', async (req, res) => { 
   try {
-    const email = req.query.email;
+    const email = req.query.email || 'deenzrn@yahoo.com';  // Use provided email or fallback to the specific one
     if (!email) {
       return res.status(400).json({ error: 'Email address is required' });
     }
 
-    const accessToken = await getCachedOrNewAccessToken();
+    const accessToken = await getCachedOrNewAccessToken();  // Get access token from cache or refresh
     const encodedEmail = encodeURIComponent(email);
-    const apiUrl = `https://api.foxycart.com/stores/50526/customers?filter[email]=gombcg@gmail.com`;
-    
-    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
-
-    if (data && data._embedded && data._embedded['fx:customers'] && data._embedded['fx:customers'].length > 0) {
-      const customers = data._embedded['fx:customers'];
-      return res.json(customers);
-    } else if (data && data.total_items === 0) {
-      return res.status(404).json({ error: 'No customer found with the given email address.' });
-    } else {
-      return res.status(404).json({ error: 'No customer found or no data returned.' });
-    }
-  } catch (error) {
-    console.error('Error searching for customer by email (filter[email]):', error);
-    return res.status(500).json({ error: 'Failed to search for customer data from FoxyCart API' });
-  }
-});
-
-// New route for direct email search
-app.get('/foxycart/customers/searchbyEmailDirect', async (req, res) => {
-  try {
-    const email = req.query.email;
-    if (!email) {
-      return res.status(400).json({ error: 'Email address is required' });
-    }
-
-    const accessToken = await getCachedOrNewAccessToken();
-    const encodedEmail = encodeURIComponent(email);
-    const apiUrl = `https://api.foxycart.com/stores/50526/customers?email=gombcg@gmail.com`;
+    const apiUrl = `https://api.foxycart.com/stores/50526/customers?email=${encodedEmail}`;
 
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
 
     if (data && data._embedded && data._embedded['fx:customers'] && data._embedded['fx:customers'].length > 0) {
       const customers = data._embedded['fx:customers'];
-      return res.json(customers);
+      return res.json(customers);  // Return customers if found
     } else if (data && data.total_items === 0) {
       return res.status(404).json({ error: 'No customer found with the given email address.' });
     } else {
@@ -254,6 +228,7 @@ app.get('/foxycart/customers/searchbyEmailDirect', async (req, res) => {
     return res.status(500).json({ error: 'Failed to search for customer data from FoxyCart API' });
   }
 });
+
 
 /// Proxy route for calling FoxyCart API to search customer details by email
 app.get('/foxycart/customers/searchbyEmail', async (req, res) => {
