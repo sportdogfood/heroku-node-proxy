@@ -139,6 +139,7 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
 
 
 // New route for direct email search 
+// New route for direct email search (Move this above other dynamic ID routes)
 app.get('/foxycart/customers/find', async (req, res) => { 
   try {
     const email = req.query.email || 'deenzrn@yahoo.com';  // Use provided email or fallback to default
@@ -151,7 +152,7 @@ app.get('/foxycart/customers/find', async (req, res) => {
     const encodedEmail = encodeURIComponent(email);
 
     // Correct API endpoint for searching customers by email
-    const apiUrl = `https://api.foxycart.com/stores/50526/customers?email=${encodedEmail}`;
+    const apiUrl = `https://api.foxycart.com/stores/50526/customers?email=deenzrn@yahoo.com`;
 
     // Make the request
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
@@ -169,6 +170,66 @@ app.get('/foxycart/customers/find', async (req, res) => {
     return res.status(500).json({ error: 'Failed to search for customer data from FoxyCart API' });
   }
 });
+
+// Proxy route for calling FoxyCart API to fetch customer details by ID
+app.get('/foxycart/customers/:id', async (req, res) => {
+  try {
+    const customerId = req.params.id;
+    const zoomParams = req.query.zoom;
+
+    if (!customerId) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    // Get a new FoxyCart access token
+    const accessToken = await refreshToken();
+    const apiUrl = `https://api.foxycart.com/customers/${customerId}?sso=true&zoom=${zoomParams}`;
+
+    // Use the helper function to make the request
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    // Check if data is returned successfully
+    if (data) {
+      res.json(data);
+    } else {
+      res.status(404).json({ error: 'Customer not found or no data returned.' });
+    }
+  } catch (error) {
+    // Log any errors that occur
+    console.error('Error fetching customer data:', error);
+    res.status(500).json({ error: 'Failed to retrieve customer data from FoxyCart API' });
+  }
+});
+
+// Proxy route for calling FoxyCart API to fetch customer details by ID
+app.get('/foxycart/customers/foxyapi/:id', async (req, res) => {
+  try {
+    const customerId = req.params.id;
+
+    if (!customerId) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    // Get a new FoxyCart access token
+    const accessToken = await refreshToken();
+    const apiUrl = `https://api.foxycart.com/customers/${customerId}?sso=true`;
+
+    // Use the helper function to make the request
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    // Check if data is returned successfully
+    if (data) {
+      res.json(data);
+    } else {
+      res.status(404).json({ error: 'Customer not found or no data returned.' });
+    }
+  } catch (error) {
+    // Log any errors that occur
+    console.error('Error fetching customer data:', error);
+    res.status(500).json({ error: 'Failed to retrieve customer data from FoxyCart API' });
+  }
+});
+
 
 
 // Proxy route for calling FoxyCart API to fetch customer details by ID
