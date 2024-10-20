@@ -402,6 +402,40 @@ app.get('/foxycart/transactions', async (req, res) => {
   }
 });
 
+// Route for direct email search 
+app.get('/foxycart/customers/find', async (req, res) => {
+  try {
+    // Extract the email address from the query parameter
+    const email = req.query.email;
+    
+    // If email is not provided, return an error response
+    if (!email) {
+      return res.status(400).json({ error: 'Email address is required' });
+    }
+
+    // Get access token from cache or refresh
+    const accessToken = await getCachedOrNewAccessToken();
+    const encodedEmail = encodeURIComponent(email);  // Encode the email for safe URL use
+    const apiUrl = https://api.foxycart.com/stores/50526/customers?email=${encodedEmail};
+
+    // Make the request to FoxyCart API
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    // Check if data was returned and embedded customers exist
+    if (data && data._embedded && data._embedded['fx:customers'] && data._embedded['fx:customers'].length > 0) {
+      const customers = data._embedded['fx:customers'];
+      return res.json(customers);  // Return customers if found
+    } else if (data && data.total_items === 0) {
+      return res.status(404).json({ error: 'No customer found with the given email address.' });
+    } else {
+      return res.status(404).json({ error: 'No customer found or no data returned.' });
+    }
+  } catch (error) {
+    console.error('Error searching for customer by email:', error);
+    return res.status(500).json({ error: 'Failed to search for customer data from FoxyCart API' });
+  }
+});
+
 // Route for fetching cart items by cart_id
 app.get('/foxycart/carts/:cart_id/items', async (req, res) => {
   try {
