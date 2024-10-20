@@ -138,20 +138,21 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
 });
 
 
-// New route for direct email search 
+
 // Route for direct email search 
 app.get('/foxycart/customers/find', async (req, res) => {
   try {
-    // Extract the email address from query parameter or use default
-    const email = req.query.email || 'deenzrn@yahoo.com';
+    // Extract the email address from the query parameter
+    const email = req.query.email;
     
+    // If email is not provided, return an error response
     if (!email) {
       return res.status(400).json({ error: 'Email address is required' });
     }
 
     // Get access token from cache or refresh
     const accessToken = await getCachedOrNewAccessToken();
-    const encodedEmail = encodeURIComponent(email);
+    const encodedEmail = encodeURIComponent(email);  // Encode the email for safe URL use
     const apiUrl = `https://api.foxycart.com/stores/50526/customers?email=${encodedEmail}`;
 
     // Make the request to FoxyCart API
@@ -171,6 +172,7 @@ app.get('/foxycart/customers/find', async (req, res) => {
     return res.status(500).json({ error: 'Failed to search for customer data from FoxyCart API' });
   }
 });
+
 
 
 // Helper function to get a cached or new access token
@@ -492,8 +494,6 @@ app.patch('/foxycart/subscriptions/:subscription_id/send_webhooks', async (req, 
     res.status(500).json({ error: 'Failed to trigger webhook for subscription from FoxyCart API' });
   }
 });
-
-
 // Route for fetching customer transactions
 app.get('/foxycart/transactions', async (req, res) => {
   try {
@@ -505,7 +505,8 @@ app.get('/foxycart/transactions', async (req, res) => {
 
     console.log('Received customer_id:', customer_id); // Log customer_id for debugging
 
-    const accessToken = await refreshToken();
+    // Use the same logic to get a cached or refreshed access token
+    const accessToken = await getCachedOrNewAccessToken();  
     console.log('Access token:', accessToken); // Log accessToken for debugging
 
     // Construct the FoxyCart API URL for transactions
