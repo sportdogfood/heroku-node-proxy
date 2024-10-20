@@ -139,24 +139,25 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
 
 
 // New route for direct email search 
-// New route for direct email search (Move this above other dynamic ID routes)
-app.get('/foxycart/customers/find', async (req, res) => { 
+// Route for direct email search 
+app.get('/foxycart/customers/find', async (req, res) => {
   try {
-    const email = req.query.email || 'deenzrn@yahoo.com';  // Use provided email or fallback to default
+    // Extract the email address from query parameter or use default
+    const email = req.query.email || 'deenzrn@yahoo.com';
+    
     if (!email) {
       return res.status(400).json({ error: 'Email address is required' });
     }
 
-    // Get a new FoxyCart access token
-    const accessToken = await getCachedOrNewAccessToken();  
+    // Get access token from cache or refresh
+    const accessToken = await getCachedOrNewAccessToken();
     const encodedEmail = encodeURIComponent(email);
+    const apiUrl = `https://api.foxycart.com/stores/50526/customers?email=${encodedEmail}`;
 
-    // Correct API endpoint for searching customers by email
-    const apiUrl = `https://api.foxycart.com/stores/50526/customers?email=deenzrn@yahoo.com`;
-
-    // Make the request
+    // Make the request to FoxyCart API
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
 
+    // Check if data was returned and embedded customers exist
     if (data && data._embedded && data._embedded['fx:customers'] && data._embedded['fx:customers'].length > 0) {
       const customers = data._embedded['fx:customers'];
       return res.json(customers);  // Return customers if found
@@ -166,10 +167,58 @@ app.get('/foxycart/customers/find', async (req, res) => {
       return res.status(404).json({ error: 'No customer found or no data returned.' });
     }
   } catch (error) {
-    console.error('Error searching for customer by email (direct):', error);
+    console.error('Error searching for customer by email:', error);
     return res.status(500).json({ error: 'Failed to search for customer data from FoxyCart API' });
   }
 });
+
+
+// Helper function to get a cached or new access token
+async function getCachedOrNewAccessToken() {
+  if (!global.accessToken || tokenIsExpired(global.accessToken)) {
+    // Fetch a new token if no valid token is stored or it's expired
+    global.accessToken = await refreshToken();
+    global.accessToken.expires_at = Date.now() + 3600 * 1000; // Token valid for 1 hour (set appropriately)
+  }
+  return global.accessToken.token; // Return the valid token
+}
+
+// Helper function to check if the token is expired
+function tokenIsExpired(token) {
+  // Check if the token is expired based on current time and stored expiry
+  return !token || token.expires_at < Date.now();
+}
+
+// Function to refresh the FoxyCart access token
+async function refreshToken() {
+  try {
+    const refreshResponse = await fetch('https://api.foxycart.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: process.env.FOXY_REFRESH_TOKEN,
+        client_id: process.env.FOXY_CLIENT_ID,
+        client_secret: process.env.FOXY_CLIENT_SECRET,
+      }),
+    });
+
+    if (!refreshResponse.ok) {
+      const errorText = await refreshResponse.text();
+      throw new Error(`Token refresh failed with status ${refreshResponse.status}: ${errorText}`);
+    }
+
+    const tokenData = await refreshResponse.json();
+    return {
+      token: tokenData.access_token,
+      expires_at: Date.now() + tokenData.expires_in * 1000  // Calculate the expiry time based on the token's life
+    };
+  } catch (error) {
+    console.error('Failed to refresh token:', error);
+    throw error;
+  }
+}
+
 
 // Proxy route for calling FoxyCart API to fetch customer details by ID
 app.get('/foxycart/customers/:id', async (req, res) => {
