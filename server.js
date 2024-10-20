@@ -209,7 +209,7 @@ app.get('/foxycart/customers/searchbyEmail', async (req, res) => {
 
     const accessToken = await getCachedOrNewAccessToken();
     const encodedEmail = encodeURIComponent(email);
-    const apiUrl = `https://api.foxycart.com/stores/50526/customers?filter[email]=${encodedEmail}`;
+    const apiUrl = `https://api.foxycart.com/stores/50526/customers?filter[email]=gombcg@gmail.com`;
     
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
 
