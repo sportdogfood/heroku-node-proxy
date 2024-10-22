@@ -1,53 +1,68 @@
 const express = require('express');
 const fetch = require('node-fetch');
+const cors = require('cors'); // Import cors
+const morgan = require('morgan'); // For logging
 const app = express();
+
+// Use morgan for logging HTTP requests
+app.use(morgan('combined'));
+
+// Use the cors middleware
+app.use(cors({
+  origin: '*', // Replace '*' with specific origins if needed
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'fx-customer'],
+}));
 
 // Middleware to parse JSON bodies
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Middleware to add CORS headers
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, fx-customer');
-  
-  // Handle preflight OPTIONS request
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
+// Helper function to check if the token is expired
+function tokenIsExpired(token) {
+  return !token || token.expires_at < Date.now();
+}
+
+// Helper function to get a cached or new access token
+async function getCachedOrNewAccessToken() {
+  if (!global.accessToken || tokenIsExpired(global.accessToken)) {
+    // Fetch a new token if no valid token is stored or it's expired
+    global.accessToken = await refreshToken();
   }
-
-  next();
-});
-
-// Handle OPTIONS preflight requests
-app.options('*', (req, res) => {
-  res.sendStatus(200);
-});
+  return global.accessToken.token; // Return the valid token
+}
 
 // Function to refresh the FoxyCart access token
 async function refreshToken() {
-  const refreshResponse = await fetch('https://api.foxycart.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: process.env.FOXY_REFRESH_TOKEN,
-      client_id: process.env.FOXY_CLIENT_ID,
-      client_secret: process.env.FOXY_CLIENT_SECRET,
-    }),
-  });
+  try {
+    const refreshResponse = await fetch('https://api.foxycart.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: process.env.FOXY_REFRESH_TOKEN,
+        client_id: process.env.FOXY_CLIENT_ID,
+        client_secret: process.env.FOXY_CLIENT_SECRET,
+      }),
+    });
 
-  if (!refreshResponse.ok) {
-    const errorText = await refreshResponse.text();
-    throw new Error(`Token refresh failed with status ${refreshResponse.status}: ${errorText}`);
+    if (!refreshResponse.ok) {
+      const errorText = await refreshResponse.text();
+      throw new Error(`Token refresh failed with status ${refreshResponse.status}: ${errorText}`);
+    }
+
+    const tokenData = await refreshResponse.json();
+    return {
+      token: tokenData.access_token,
+      expires_at: Date.now() + tokenData.expires_in * 1000, // Calculate the expiry time
+    };
+  } catch (error) {
+    console.error('Failed to refresh token:', error);
+    throw error;
   }
-
-  const tokenData = await refreshResponse.json();
-  return tokenData.access_token;
 }
 
-// Helper function to make API requests to FoxyCart (handle HAL responses)
+// Function to make API requests to FoxyCart (handle HAL responses)
 async function makeFoxyCartRequest(method, endpoint, accessToken, body = null, fxCustomer = null) {
   const headers = {
     'Authorization': `Bearer ${accessToken}`,
@@ -76,7 +91,7 @@ async function makeFoxyCartRequest(method, endpoint, accessToken, body = null, f
 
     // Handle HAL response
     const data = await apiResponse.json();
-    return data;  // Return raw data (we'll process in individual routes)
+    return data; // Return raw data (process in routes)
   } catch (error) {
     console.error(`Error with primary endpoint (${endpoint}):`, error);
 
@@ -90,10 +105,11 @@ async function makeFoxyCartRequest(method, endpoint, accessToken, body = null, f
       throw new Error(`Backup API request failed with status ${backupResponse.status}: ${errorText}`);
     }
     const backupData = await backupResponse.json();
-    return backupData;  // Return raw data (we'll process in individual routes)
+    return backupData; // Return raw data (process in routes)
   }
 }
 
+// Example Route
 app.post('/foxycart/customer/authenticate', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -103,7 +119,7 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
     }
 
     // Get a new FoxyCart access token
-    const accessToken = await refreshToken();
+    const accessToken = await getCachedOrNewAccessToken();
     const apiUrl = `https://secure.sportdogfood.com/s/customer/authenticate`;
 
     // Make the request to FoxyCart for customer authentication
@@ -136,55 +152,6 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
     res.status(500).json({ error: 'Error authenticating customer from FoxyCart API' });
   }
 });
-
-
-
-// Helper function to get a cached or new access token
-async function getCachedOrNewAccessToken() {
-  if (!global.accessToken || tokenIsExpired(global.accessToken)) {
-    // Fetch a new token if no valid token is stored or it's expired
-    global.accessToken = await refreshToken();
-    global.accessToken.expires_at = Date.now() + 3600 * 1000; // Token valid for 1 hour (set appropriately)
-  }
-  return global.accessToken.token; // Return the valid token
-}
-
-// Helper function to check if the token is expired
-function tokenIsExpired(token) {
-  // Check if the token is expired based on current time and stored expiry
-  return !token || token.expires_at < Date.now();
-}
-
-// Function to refresh the FoxyCart access token
-async function refreshToken() {
-  try {
-    const refreshResponse = await fetch('https://api.foxycart.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: process.env.FOXY_REFRESH_TOKEN,
-        client_id: process.env.FOXY_CLIENT_ID,
-        client_secret: process.env.FOXY_CLIENT_SECRET,
-      }),
-    });
-
-    if (!refreshResponse.ok) {
-      const errorText = await refreshResponse.text();
-      throw new Error(`Token refresh failed with status ${refreshResponse.status}: ${errorText}`);
-    }
-
-    const tokenData = await refreshResponse.json();
-    return {
-      token: tokenData.access_token,
-      expires_at: Date.now() + tokenData.expires_in * 1000  // Calculate the expiry time based on the token's life
-    };
-  } catch (error) {
-    console.error('Failed to refresh token:', error);
-    throw error;
-  }
-}
-
 
 
 
