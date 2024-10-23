@@ -109,124 +109,6 @@ async function makeFoxyCartRequest(method, endpoint, accessToken, body = null, f
   }
 }
 
-// Variables for Zoho Desk
-let deskAccessToken = '';
-let deskRefreshToken = process.env.DESK_REFRESH_TOKEN;
-let deskClientId = process.env.DESK_CLIENT_ID;
-let deskClientSecret = process.env.DESK_CLIENT_SECRET;
-let deskOrgId = process.env.ZOHO_DESK_ORG_ID;
-
-// Function to refresh the Zoho Desk access token
-async function refreshZohoDeskToken() {
-  const refreshUrl = 'https://accounts.zoho.com/oauth/v2/token';
-
-  try {
-    const response = await fetch(refreshUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: deskRefreshToken,
-        client_id: deskClientId,
-        client_secret: deskClientSecret
-      })
-    });
-
-    const data = await response.json();
-    if (data.access_token) {
-      deskAccessToken = data.access_token;
-      console.log('Zoho Desk Access Token Refreshed:', deskAccessToken);
-      return {
-        token: deskAccessToken,
-        expires_at: Date.now() + data.expires_in * 1000,
-      };
-    } else {
-      throw new Error('Failed to refresh Zoho Desk token');
-    }
-  } catch (error) {
-    console.error('Error refreshing Zoho Desk access token:', error);
-    throw error;
-  }
-}
-
-// Helper function to check if the token is expired (for Zoho Desk)
-function deskTokenIsExpired(token) {
-  return !token || token.expires_at < Date.now();
-}
-
-// Helper function to get a cached or new Zoho Desk access token
-async function getCachedOrNewDeskAccessToken() {
-  if (!global.deskAccessTokenObj || deskTokenIsExpired(global.deskAccessTokenObj)) {
-    // Fetch a new token if no valid token is stored or it's expired
-    global.deskAccessTokenObj = await refreshZohoDeskToken();
-  }
-  return global.deskAccessTokenObj.token; // Return the valid token
-}
-
-// Function to make API requests to Zoho Desk
-async function makeZohoDeskRequest(method, endpoint, accessToken, body = null) {
-  const headers = {
-    'Authorization': `Zoho-oauthtoken ${accessToken}`,
-    'orgId': deskOrgId,
-    'Content-Type': 'application/json',
-  };
-
-  const options = {
-    method,
-    headers,
-  };
-
-  if (body) {
-    options.body = JSON.stringify(body);
-  }
-
-  try {
-    let response = await fetch(endpoint, options);
-
-    if (response.status === 401) {
-      console.log('Zoho Desk access token expired, refreshing...');
-      // Refresh the token
-      await refreshZohoDeskToken();
-      accessToken = deskAccessToken;
-      headers['Authorization'] = `Zoho-oauthtoken ${accessToken}`;
-      // Retry the request
-      response = await fetch(endpoint, options);
-    }
-
-    if (!response.ok) {
-      const errorResponse = await response.json();
-      console.error(`Zoho Desk API Error: ${response.statusText}`, errorResponse);
-      throw new Error(`Zoho Desk API Error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error(`Error with Zoho Desk endpoint (${endpoint}):`, error);
-    throw error;
-  }
-}
-
-// Route to search contacts by email in Zoho Desk
-app.get('/zoho-desk/contacts/search', async (req, res) => {
-  try {
-    const email = req.query.email || '';
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
-    }
-    const encodedEmail = encodeURIComponent(email);
-    const accessToken = await getCachedOrNewDeskAccessToken();
-    const apiUrl = `https://desk.zoho.com/api/v1/contacts/search?email=${encodedEmail}`;
-    const data = await makeZohoDeskRequest('GET', apiUrl, accessToken);
-    res.json(data);
-  } catch (error) {
-    console.error('Error searching contacts in Zoho Desk:', error);
-    res.status(500).json({ error: 'Error searching contacts in Zoho Desk' });
-  }
-});
-
-// Existing FoxyCart routes...
-
 // Example Route
 app.post('/foxycart/customer/authenticate', async (req, res) => {
   try {
@@ -271,7 +153,7 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
   }
 });
 
-// Additional FoxyCart routes (unchanged)...
+
 
 // Route for direct email search 
 app.get('/foxycart/customers/find', async (req, res) => {
@@ -313,14 +195,18 @@ app.get('/foxycart/customers/:id', async (req, res) => {
   try {
     const customerId = req.params.id;
     const zoomParams = req.query.zoom;
+
     if (!customerId) {
       return res.status(400).json({ error: 'Customer ID is required' });
     }
+
     // Get a cached or refreshed FoxyCart access token
     const accessToken = await getCachedOrNewAccessToken();
     const apiUrl = `https://api.foxycart.com/customers/${customerId}?sso=true&zoom=${zoomParams || ''}`;
+
     // Make the request to FoxyCart API
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
     // Check if data is returned successfully
     if (data) {
       res.json(data);  // Return customer data if found
@@ -333,24 +219,31 @@ app.get('/foxycart/customers/:id', async (req, res) => {
   }
 });
 
+
 // New route for fetching customer details by customer_id
 app.get('/foxycart/customers/byCustomerId', async (req, res) => {
   try {
     const { customer_id } = req.query;
+
     // Check if the customer_id is provided
     if (!customer_id) {
       return res.status(400).json({ error: 'Customer ID is required' });
     }
+
     console.log('Received customer_id:', customer_id);
+
     // Get access token from cache or refresh
     const accessToken = await getCachedOrNewAccessToken();
     console.log('Access token:', accessToken);
+
     // Construct the FoxyCart API URL using customer_id
     const apiUrl = `https://api.foxycart.com/stores/50526/customers?customer_id=${customer_id}`;
     console.log(`Fetching customer data for customer ID: ${customer_id} with URL: ${apiUrl}`);
+
     // Make the request to FoxyCart API
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
     console.log('Raw data from FoxyCart API:', JSON.stringify(data, null, 2));
+
     // Check if data was returned successfully
     if (data && data._embedded && data._embedded['fx:customers']) {
       const customers = data._embedded['fx:customers'];
@@ -364,13 +257,16 @@ app.get('/foxycart/customers/byCustomerId', async (req, res) => {
   }
 });
 
+
 // New route for forgot password
 app.post('/foxycart/customer/forgot_password', async (req, res) => {
   const { email } = req.body;
+
   // Check if email is provided
   if (!email) {
     return res.status(400).json({ error: 'Email is required' });
   }
+
   try {
     const url = 'https://secure.sportdogfood.com/s/customer/forgot_password';
     
@@ -378,14 +274,17 @@ app.post('/foxycart/customer/forgot_password', async (req, res) => {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${await getCachedOrNewAccessToken()}` // Use cached or new token
     };
+
     // Payload to send with the email
     const body = JSON.stringify({ email });
+
     // Make the POST request to the forgot_password API
     const response = await fetch(url, {
       method: 'POST',
       headers: headers,
       body: body
     });
+
     if (response.ok) {
       const responseData = await response.json();
       return res.status(200).json({
@@ -404,56 +303,74 @@ app.post('/foxycart/customer/forgot_password', async (req, res) => {
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
 // New route for updating the customer's password
 app.patch('/foxycart/customers/update-password/:customerId', async (req, res) => {
   try {
     const { customerId } = req.params;
     const { newPassword } = req.body;
+
     // Check if customerId and newPassword are provided
     if (!customerId || !newPassword) {
       return res.status(400).json({ error: 'Customer ID and new password are required' });
     }
+
     // Get a cached or refreshed FoxyCart access token
     const accessToken = await getCachedOrNewAccessToken();
+
     // FoxyCart API URL for updating the password
     const apiUrl = `https://api.foxycart.com/customers/${customerId}`;
+
     // Construct the payload with the new password
     const body = {
       password: newPassword
     };
+
     // Make the PATCH request to FoxyCart API to update the password
     const data = await makeFoxyCartRequest('PATCH', apiUrl, accessToken, body);
+
     // Log the response data for debugging
     console.log('Password update response:', JSON.stringify(data, null, 2));
+
     // If the request was successful, respond with success message
     return res.status(200).json({ message: 'Password updated successfully', data });
+
   } catch (error) {
     // Handle any errors during the process
     console.error('Error updating customer password:', error);
     res.status(500).json({ error: 'Failed to update customer password' });
   }
 });
+
 // Route for fetching customer subscriptions
 app.get('/foxycart/subscriptions', async (req, res) => {
   try {
     const { customer_id } = req.query;
+
     if (!customer_id) {
       return res.status(400).json({ error: 'Customer ID is required' });
     }
+
     console.log('Received customer_id:', customer_id);
+
     // Get access token from cache or refresh
     const accessToken = await getCachedOrNewAccessToken();
     console.log('Access token:', accessToken);
+
     // Construct the FoxyCart API URL for subscriptions
     const apiUrl = `https://api.foxycart.com/stores/50526/subscriptions?customer_id=${customer_id}&is_active=true`;
     console.log(`Fetching subscriptions for customer ID: ${customer_id} with URL: ${apiUrl}`);
+
     // Make request to FoxyCart API
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
     console.log('Raw data from FoxyCart API:', JSON.stringify(data, null, 2));
+
     // Extracting total_items from the response
     const totalItems = data.total_items || 0; // Default to 0 if total_items is not present
+
     if (data._embedded && data._embedded['fx:subscriptions']) {
       const activeSubscriptions = data._embedded['fx:subscriptions'].filter(sub => sub.is_active === true);
+
       if (activeSubscriptions.length > 0) {
         // Include total_items in the response along with active subscriptions
         res.json({
@@ -480,27 +397,36 @@ app.get('/foxycart/subscriptions', async (req, res) => {
   }
 });
 
+
 // Route for fetching customer transactions
 app.get('/foxycart/transactions', async (req, res) => {
   try {
     const { customer_id } = req.query;
+
     if (!customer_id) {
       return res.status(400).json({ error: 'Customer ID is required' });
     }
+
     console.log('Received customer_id:', customer_id); // Log customer_id for debugging
+
     // Use the same logic to get a cached or refreshed access token
     const accessToken = await getCachedOrNewAccessToken();  
     console.log('Access token:', accessToken); // Log accessToken for debugging
+
     // Construct the FoxyCart API URL for transactions
     const apiUrl = `https://api.foxycart.com/stores/50526/transactions?customer_id=${customer_id}&limit=6&zoom=items,items:item_options,items:item_category`;
     console.log(`Fetching transactions for customer ID: ${customer_id} with URL: ${apiUrl}`);
+
     // Make request to FoxyCart API
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
     console.log('Raw data from FoxyCart API:', JSON.stringify(data, null, 2)); // Log raw data for clarity
+
     // Extract total_items from the response
     const totalItems = data.total_items || 0; // Default to 0 if total_items is not present
+
     if (data._embedded && data._embedded['fx:transactions']) {
       const transactions = data._embedded['fx:transactions'];
+
       if (transactions.length > 0) {
         // Include total_items in the response along with transactions
         res.json({
@@ -528,23 +454,29 @@ app.get('/foxycart/transactions', async (req, res) => {
 });
 
 
+
 // Route for fetching cart items by cart_id
 app.get('/foxycart/carts/:cart_id/items', async (req, res) => {
   try {
     const { cart_id } = req.params;
+
     // Check if cart_id is provided
     if (!cart_id) {
       return res.status(400).json({ error: 'Cart ID is required' });
     }
+
     // Get access token from cache or refresh
     const accessToken = await getCachedOrNewAccessToken();
     console.log('Access token:', accessToken);
+
     // Construct the FoxyCart API URL
     const apiUrl = `https://api.foxycart.com/carts/${cart_id}/items`;
     console.log(`Fetching items for cart ID: ${cart_id} with URL: ${apiUrl}`);
+
     // Make the request to FoxyCart API
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
     console.log('Raw data from FoxyCart API:', JSON.stringify(data, null, 2));
+
     // Check if data was returned successfully
     if (data) {
       res.json(data);  // Return the cart items if found
@@ -556,17 +488,22 @@ app.get('/foxycart/carts/:cart_id/items', async (req, res) => {
     res.status(500).json({ error: 'Failed to retrieve cart items from FoxyCart API' });
   }
 });
+
 // Route for fetching subscription by subscription_id
 app.get('/foxycart/subscriptions/:subscription_id', async (req, res) => {
   try {
     const { subscription_id } = req.params;
+
     if (!subscription_id) {
       return res.status(400).json({ error: 'Subscription ID is required' });
     }
+
     // Get access token from cache or refresh
     const accessToken = await getCachedOrNewAccessToken();
     const apiUrl = `https://api.foxycart.com/subscriptions/${subscription_id}`;
+
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
     if (data) {
       res.json(data);
     } else {
@@ -577,17 +514,22 @@ app.get('/foxycart/subscriptions/:subscription_id', async (req, res) => {
     res.status(500).json({ error: 'Failed to retrieve subscription from FoxyCart API' });
   }
 });
+
 // Route for fetching item by item_id
 app.get('/foxycart/items/:item_id', async (req, res) => {
   try {
     const { item_id } = req.params;
+
     if (!item_id) {
       return res.status(400).json({ error: 'Item ID is required' });
     }
+
     // Get access token from cache or refresh
     const accessToken = await getCachedOrNewAccessToken();
     const apiUrl = `https://api.foxycart.com/items/${item_id}`;
+
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
     if (data) {
       res.json(data);
     } else {
@@ -598,17 +540,22 @@ app.get('/foxycart/items/:item_id', async (req, res) => {
     res.status(500).json({ error: 'Failed to retrieve item from FoxyCart API' });
   }
 });
+
 // Route for triggering webhook for a subscription by subscription_id
 app.patch('/foxycart/subscriptions/:subscription_id/send_webhooks', async (req, res) => {
   try {
     const { subscription_id } = req.params;
+
     if (!subscription_id) {
       return res.status(400).json({ error: 'Subscription ID is required' });
     }
+
     // Get access token from cache or refresh
     const accessToken = await getCachedOrNewAccessToken();
     const apiUrl = `https://api.foxycart.com/subscriptions/${subscription_id}/send_webhooks`;
+
     const data = await makeFoxyCartRequest('PATCH', apiUrl, accessToken);
+
     if (data) {
       res.json(data);
     } else {
@@ -620,12 +567,6 @@ app.patch('/foxycart/subscriptions/:subscription_id/send_webhooks', async (req, 
   }
 });
 
-
-// Error Handling Middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Internal Server Error' });
-});
 
 // Start the server
 app.listen(process.env.PORT || 3000, () => {
