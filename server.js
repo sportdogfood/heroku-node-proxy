@@ -512,6 +512,8 @@ app.get('/foxycart/cart/get-session', async (req, res) => {
     // Define the FoxyCart cart API URL with necessary parameters
     const apiUrl = `https://secure.sportdogfood.com/cart?fc_customer_id=0&timestamp=${Date.now()}`;
 
+    console.log(`Making request to: ${apiUrl}`);
+
     // Make the GET request to FoxyCart's cart endpoint
     const response = await fetch(apiUrl, {
       method: 'GET',
@@ -523,7 +525,8 @@ app.get('/foxycart/cart/get-session', async (req, res) => {
     // Check if the request was successful
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Failed to create cart session with status ${response.status}: ${errorText}`);
+      console.error(`Failed request to FoxyCart: ${response.status} - ${errorText}`);
+      throw new Error(`Failed to create cart session with status ${response.status}`);
     }
 
     // Parse the response data to get the cart session information
@@ -538,9 +541,10 @@ app.get('/foxycart/cart/get-session', async (req, res) => {
     console.error('Error creating cart session:', error);
 
     // Respond with a 500 error and a message indicating the failure
-    res.status(500).json({ error: 'Failed to create cart session' });
+    res.status(500).json({ error: 'Failed to create cart session', details: error.message });
   }
 });
+
 
 
 // Route for fetching cart items by cart_id
