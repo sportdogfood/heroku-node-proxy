@@ -506,26 +506,39 @@ app.get('/foxycart/transactions', async (req, res) => {
   }
 });
 
-// Route for simply pinging the cart to create a session without a contact
-app.get('/foxycart/cart/create-session', async (req, res) => {
+// Route to ping FoxyCart to create a cart session and retrieve fcsid
+app.get('/foxycart/cart/get-session', async (req, res) => {
   try {
-    // Get access token from cache or refresh
-    const accessToken = await getCachedOrNewAccessToken();
-    const apiUrl = `https://api.foxycart.com/carts/cart?cart=create`; // Assuming `cart=create` creates a session
+    // Define the FoxyCart cart API URL with necessary parameters
+    const apiUrl = `https://secure.sportdogfood.com/cart?fc_customer_id=0&timestamp=${Date.now()}`;
 
-    // Make the request to FoxyCart API to create a cart session
-    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+    // Make the GET request to FoxyCart's cart endpoint
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
 
-    // Return response from the API
-    if (data) {
-      console.log('Cart session created:', JSON.stringify(data, null, 2));
-      res.json(data); // Return the data, this should include the cart session details
-    } else {
-      res.status(404).json({ error: 'No data returned from cart creation.' });
+    // Check if the request was successful
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to create cart session with status ${response.status}: ${errorText}`);
     }
+
+    // Parse the response data to get the cart session information
+    const data = await response.json();
+    console.log('Cart session created:', JSON.stringify(data, null, 2));
+
+    // Return the cart data, including the fcsid, to the client
+    res.status(200).json(data);
+
   } catch (error) {
+    // Log any errors encountered
     console.error('Error creating cart session:', error);
-    res.status(500).json({ error: 'Failed to create cart session from FoxyCart API' });
+
+    // Respond with a 500 error and a message indicating the failure
+    res.status(500).json({ error: 'Failed to create cart session' });
   }
 });
 
