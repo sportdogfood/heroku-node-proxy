@@ -506,6 +506,28 @@ app.get('/foxycart/transactions', async (req, res) => {
   }
 });
 
+// Route for simply pinging the cart to create a session without a contact
+app.get('/foxycart/cart/create-session', async (req, res) => {
+  try {
+    // Get access token from cache or refresh
+    const accessToken = await getCachedOrNewAccessToken();
+    const apiUrl = `https://api.foxycart.com/carts/cart?cart=create`; // Assuming `cart=create` creates a session
+
+    // Make the request to FoxyCart API to create a cart session
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    // Return response from the API
+    if (data) {
+      console.log('Cart session created:', JSON.stringify(data, null, 2));
+      res.json(data); // Return the data, this should include the cart session details
+    } else {
+      res.status(404).json({ error: 'No data returned from cart creation.' });
+    }
+  } catch (error) {
+    console.error('Error creating cart session:', error);
+    res.status(500).json({ error: 'Failed to create cart session from FoxyCart API' });
+  }
+});
 
 
 // Route for fetching cart items by cart_id
