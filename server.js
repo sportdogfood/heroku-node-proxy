@@ -524,13 +524,22 @@ app.get('/foxycart/cart/get-session', async (req, res) => {
 
     // Check if the request was successful
     if (!response.ok) {
-      const errorText = await response.text();
+      const errorText = await response.text(); // Read the text of the response for debugging
       console.error(`Failed request to FoxyCart: ${response.status} - ${errorText}`);
       throw new Error(`Failed to create cart session with status ${response.status}`);
     }
 
-    // Parse the response data to get the cart session information
-    const data = await response.json();
+    // Attempt to parse the response as JSON
+    let data;
+    try {
+      data = await response.json(); // Attempt to parse JSON
+    } catch (jsonError) {
+      // If parsing fails, log the entire response and throw a descriptive error
+      const responseText = await response.text();
+      console.error('Failed to parse response as JSON:', responseText);
+      throw new Error('Invalid JSON response from FoxyCart');
+    }
+
     console.log('Cart session created:', JSON.stringify(data, null, 2));
 
     // Return the cart data, including the fcsid, to the client
