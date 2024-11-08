@@ -257,6 +257,59 @@ app.get('/foxycart/customers/byCustomerId', async (req, res) => {
   }
 });
 
+// Route for fetching customer attributes by customerId
+app.get('/foxycart/customers/fxattributes/:customerId', async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    // Validate customerId
+    if (!customerId) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    console.log('Received customerId:', customerId);
+
+    // Get access token from cache or refresh
+    const accessToken = await getCachedOrNewAccessToken();
+    console.log('Access token:', accessToken);
+
+    // Construct the FoxyCart API URL for customer attributes
+    const apiUrl = `https://api.foxycart.com/customers/${encodeURIComponent(customerId)}/attributes`;
+
+    console.log(`Fetching attributes for customer ID: ${customerId} with URL: ${apiUrl}`);
+
+    // Make request to FoxyCart API
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    console.log('Raw data from FoxyCart API:', JSON.stringify(data, null, 2));
+
+    // Check if data is returned successfully
+    if (data && data.attributes && Array.isArray(data.attributes)) {
+      // Optionally, filter or process attributes as needed
+      const processedAttributes = data.attributes.map(attr => ({
+        name: attr.name,
+        value: attr.value,
+        lastUpdated: new Date().toLocaleString()
+      }));
+
+      // Store processed attributes in localStorage (if needed on server-side)
+      // Note: Typically, localStorage is used on the client-side. If you intend to cache it server-side, consider using a different storage mechanism.
+
+      // Return the processed attributes to the client
+      return res.status(200).json({
+        customerId: customerId,
+        attributes: processedAttributes
+      });
+    } else {
+      // If no attributes found, return a 404
+      return res.status(404).json({ error: 'No attributes found for the given customer ID.' });
+    }
+  } catch (error) {
+    console.error('Error fetching customer attributes:', error);
+    res.status(500).json({ error: 'Failed to retrieve customer attributes from FoxyCart API' });
+  }
+});
+
 
 // New route for forgot password
 app.post('/foxycart/customer/forgot_password', async (req, res) => {
