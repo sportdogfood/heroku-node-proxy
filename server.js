@@ -540,10 +540,19 @@ app.get('/foxycart/cart/get-session', async (req, res) => {
       throw new Error('Invalid JSON response from FoxyCart');
     }
 
-    console.log('Cart session created:', JSON.stringify(data, null, 2));
+    console.log('Full response from FoxyCart:', JSON.stringify(data, null, 2));
 
-    // Return the cart data, including the fcsid, to the client
-    res.status(200).json(data);
+    // Extract fcsid from the response data
+    const fcsid = data.session_id || data.fcsid || null;
+
+    if (!fcsid) {
+      console.error('fcsid not found in FoxyCart response');
+      throw new Error('Cart session ID (fcsid) not available in FoxyCart response');
+    }
+
+    // Send back only the fcsid if that is what is required by the client
+    console.log('Cart session created with fcsid:', fcsid);
+    res.status(200).json({ fcsid });
 
   } catch (error) {
     // Log any errors encountered
@@ -553,6 +562,7 @@ app.get('/foxycart/cart/get-session', async (req, res) => {
     res.status(500).json({ error: 'Failed to create cart session', details: error.message });
   }
 });
+
 
 
 
