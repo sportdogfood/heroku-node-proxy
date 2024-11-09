@@ -259,6 +259,7 @@ app.get('/foxycart/customers/byCustomerId', async (req, res) => {
 
 // Route for fetching customer attributes by customerId
 app.get('/foxycart/customers/fxattributes/:customerId', async (req, res) => {
+  console.log('Received request for customer ID:', req.params.customerId);
   try {
     const { customerId } = req.params;
 
@@ -284,16 +285,16 @@ app.get('/foxycart/customers/fxattributes/:customerId', async (req, res) => {
     console.log('Raw data from FoxyCart API:', JSON.stringify(data, null, 2));
 
     // Check if data is returned successfully
-    if (data && data.attributes && Array.isArray(data.attributes)) {
+    if (data && data._embedded && data._embedded['fx:attributes']) {
+      // Extract attributes
+      const attributes = data._embedded['fx:attributes'];
+
       // Optionally, filter or process attributes as needed
-      const processedAttributes = data.attributes.map(attr => ({
+      const processedAttributes = attributes.map(attr => ({
         name: attr.name,
         value: attr.value,
         lastUpdated: new Date().toLocaleString()
       }));
-
-      // Store processed attributes in localStorage (if needed on server-side)
-      // Note: Typically, localStorage is used on the client-side. If you intend to cache it server-side, consider using a different storage mechanism.
 
       // Return the processed attributes to the client
       return res.status(200).json({
@@ -306,9 +307,19 @@ app.get('/foxycart/customers/fxattributes/:customerId', async (req, res) => {
     }
   } catch (error) {
     console.error('Error fetching customer attributes:', error);
+
+    // If the error has a response property, it likely came from Axios/FoxyCart API
+    if (error.response) {
+      return res.status(error.response.status).json({
+        error: `Error from FoxyCart API: ${error.response.data}`
+      });
+    }
+
+    // Handle other errors (network issues, server errors, etc.)
     res.status(500).json({ error: 'Failed to retrieve customer attributes from FoxyCart API' });
   }
 });
+
 
 
 // New route for forgot password
