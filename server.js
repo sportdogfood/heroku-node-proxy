@@ -794,10 +794,11 @@ app.patch('/foxycart/subscriptions/:subscription_id/send_webhooks', async (req, 
 });
 
 // Route for updating customer's last name using PATCH
+// Route for updating customer's last name using PATCH
 app.patch('/foxycart/customers/:customerId/patch', async (req, res) => {
   try {
     const { customerId } = req.params;
-    const { last_name } = req.query; // Taking new last_name from query parameters
+    const { last_name } = req.query; // Taking the new last_name from query parameters
 
     if (!customerId || !last_name) {
       return res.status(400).json({ error: 'Customer ID and new last name are required' });
@@ -806,27 +807,10 @@ app.patch('/foxycart/customers/:customerId/patch', async (req, res) => {
     // Step 1: Get a valid access token
     const accessToken = await getCachedOrNewAccessToken();
 
-    // Step 2: Perform a GET request to retrieve the full customer payload
-    const getUrl = `https://api.foxycart.com/customers/${customerId}`;
-    const getResponse = await fetch(getUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    // Step 2: Create a PATCH payload that only updates the last_name
+    const patchPayload = { last_name };
 
-    if (!getResponse.ok) {
-      throw new Error(`GET request failed with status ${getResponse.status}`);
-    }
-
-    const customerData = await getResponse.json();
-    console.log('Original customer data:', customerData);
-
-    // Step 3: Modify the last_name in the customer data
-    const patchPayload = { ...customerData, last_name };
-
-    // Step 4: Perform a PATCH request to update the last_name
+    // Step 3: Perform a PATCH request to update the last_name
     const patchUrl = `https://api.foxycart.com/customers/${customerId}`;
     const patchResponse = await fetch(patchUrl, {
       method: 'PATCH',
@@ -834,11 +818,12 @@ app.patch('/foxycart/customers/:customerId/patch', async (req, res) => {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(patchPayload),
+      body: JSON.stringify(patchPayload), // Send only the fields you want to update
     });
 
     if (!patchResponse.ok) {
-      throw new Error(`PATCH request failed with status ${patchResponse.status}`);
+      const errorText = await patchResponse.text(); // Get error details from the response
+      throw new Error(`PATCH request failed with status ${patchResponse.status}: ${errorText}`);
     }
 
     const updatedCustomerData = await patchResponse.json();
@@ -848,9 +833,10 @@ app.patch('/foxycart/customers/:customerId/patch', async (req, res) => {
     res.status(200).json(updatedCustomerData);
   } catch (error) {
     console.error('Error updating customer last name:', error);
-    res.status(500).json({ error: 'Failed to update customer last name' });
+    res.status(500).json({ error: 'Failed to update customer last name', details: error.message });
   }
 });
+
 
 
 // Route to refresh and display a new access token
