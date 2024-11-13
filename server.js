@@ -568,6 +568,36 @@ app.get('/foxycart/subscriptions', async (req, res) => {
   }
 });
 
+// Route for fetching subscription details by subscriptionId
+app.get('/subscriptions/:subscriptionId', async (req, res) => {
+  try {
+    const { subscriptionId } = req.params;
+
+    // Check if subscriptionId is provided
+    if (!subscriptionId) {
+      return res.status(400).json({ error: 'Subscription ID is required' });
+    }
+
+    // Get a cached or refreshed FoxyCart access token
+    const accessToken = await getCachedOrNewAccessToken();
+
+    // Construct the FoxyCart API URL for the subscription
+    const apiUrl = `https://api.foxycart.com/subscriptions/${encodeURIComponent(subscriptionId)}`;
+
+    // Make the request to FoxyCart API to get subscription details
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    // Check if data is returned successfully
+    if (data) {
+      res.json(data); // Return the subscription details if found
+    } else {
+      res.status(404).json({ error: 'Subscription not found or no data returned.' });
+    }
+  } catch (error) {
+    console.error('Error fetching subscription details:', error);
+    res.status(500).json({ error: 'Failed to retrieve subscription details from FoxyCart API' });
+  }
+});
 
 // Route for fetching customer transactions
 app.get('/foxycart/transactions', async (req, res) => {
