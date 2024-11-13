@@ -273,6 +273,59 @@ app.get('/foxycart/customers/:customerId/default_billing_address', async (req, r
   }
 });
 
+// Route for fetching customer's default payment method by customerId
+app.get('/foxycart/customers/:customerId/default_payment_method', async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    if (!customerId) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    // Get access token from cache or refresh
+    const accessToken = await getCachedOrNewAccessToken();
+    const apiUrl = `https://api.foxycart.com/customers/${encodeURIComponent(customerId)}/default_payment_method`;
+
+    // Make the request to FoxyCart API
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    if (data) {
+      res.json(data); // Return the default payment method if found
+    } else {
+      res.status(404).json({ error: 'Default payment method not found.' });
+    }
+  } catch (error) {
+    console.error('Error fetching default payment method:', error);
+    res.status(500).json({ error: 'Failed to retrieve default payment method from FoxyCart API' });
+  }
+});
+
+// Route for fetching customer's default shipping address by customerId
+app.get('/foxycart/customers/:customerId/default_shipping_address', async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    if (!customerId) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    // Get access token from cache or refresh
+    const accessToken = await getCachedOrNewAccessToken();
+    const apiUrl = `https://api.foxycart.com/customers/${encodeURIComponent(customerId)}/default_shipping_address`;
+
+    // Make the request to FoxyCart API
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    if (data) {
+      res.json(data); // Return the default shipping address if found
+    } else {
+      res.status(404).json({ error: 'Default shipping address not found.' });
+    }
+  } catch (error) {
+    console.error('Error fetching default shipping address:', error);
+    res.status(500).json({ error: 'Failed to retrieve default shipping address from FoxyCart API' });
+  }
+});
 
 // New route for fetching customer details by customer_id
 app.get('/foxycart/customers/byCustomerId', async (req, res) => {
@@ -628,9 +681,6 @@ app.get('/foxycart/cart/get-session', async (req, res) => {
   }
 });
 
-
-
-
 // Route for fetching cart items by cart_id
 app.get('/foxycart/carts/:cart_id/items', async (req, res) => {
   try {
@@ -742,6 +792,66 @@ app.patch('/foxycart/subscriptions/:subscription_id/send_webhooks', async (req, 
     res.status(500).json({ error: 'Failed to trigger webhook for subscription from FoxyCart API' });
   }
 });
+
+// Route for updating customer's last name using PATCH
+app.patch('/foxycart/customers/:customerId/patch', async (req, res) => {
+  try {
+    const { customerId } = req.params;
+    const { last_name } = req.query; // Taking new last_name from query parameters
+
+    if (!customerId || !last_name) {
+      return res.status(400).json({ error: 'Customer ID and new last name are required' });
+    }
+
+    // Step 1: Get a valid access token
+    const accessToken = await getCachedOrNewAccessToken();
+
+    // Step 2: Perform a GET request to retrieve the full customer payload
+    const getUrl = `https://api.foxycart.com/customers/${customerId}`;
+    const getResponse = await fetch(getUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!getResponse.ok) {
+      throw new Error(`GET request failed with status ${getResponse.status}`);
+    }
+
+    const customerData = await getResponse.json();
+    console.log('Original customer data:', customerData);
+
+    // Step 3: Modify the last_name in the customer data
+    const patchPayload = { ...customerData, last_name };
+
+    // Step 4: Perform a PATCH request to update the last_name
+    const patchUrl = `https://api.foxycart.com/customers/${customerId}`;
+    const patchResponse = await fetch(patchUrl, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(patchPayload),
+    });
+
+    if (!patchResponse.ok) {
+      throw new Error(`PATCH request failed with status ${patchResponse.status}`);
+    }
+
+    const updatedCustomerData = await patchResponse.json();
+    console.log('Updated customer data:', updatedCustomerData);
+
+    // Respond with the updated customer data
+    res.status(200).json(updatedCustomerData);
+  } catch (error) {
+    console.error('Error updating customer last name:', error);
+    res.status(500).json({ error: 'Failed to update customer last name' });
+  }
+});
+
 
 // Route to refresh and display a new access token
 app.get('/test_auth', async (req, res) => {
