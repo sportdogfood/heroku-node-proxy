@@ -219,6 +219,60 @@ app.get('/foxycart/customers/:id', async (req, res) => {
   }
 });
 
+// Route for fetching customer attributes by customerId
+app.get('/foxycart/customers/:customerId/attributes', async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    if (!customerId) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    // Get access token from cache or refresh
+    const accessToken = await getCachedOrNewAccessToken();
+    const apiUrl = `https://api.foxycart.com/customers/${encodeURIComponent(customerId)}/attributes`;
+
+    // Make the request to FoxyCart API
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    if (data) {
+      res.json(data); // Return the customer attributes if found
+    } else {
+      res.status(404).json({ error: 'Customer attributes not found.' });
+    }
+  } catch (error) {
+    console.error('Error fetching customer attributes:', error);
+    res.status(500).json({ error: 'Failed to retrieve customer attributes from FoxyCart API' });
+  }
+});
+
+// Route for fetching customer's default billing address by customerId
+app.get('/foxycart/customers/:customerId/default_billing_address', async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    if (!customerId) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    // Get access token from cache or refresh
+    const accessToken = await getCachedOrNewAccessToken();
+    const apiUrl = `https://api.foxycart.com/customers/${encodeURIComponent(customerId)}/default_billing_address`;
+
+    // Make the request to FoxyCart API
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    if (data) {
+      res.json(data); // Return the default billing address if found
+    } else {
+      res.status(404).json({ error: 'Default billing address not found.' });
+    }
+  } catch (error) {
+    console.error('Error fetching default billing address:', error);
+    res.status(500).json({ error: 'Failed to retrieve default billing address from FoxyCart API' });
+  }
+});
+
 
 // New route for fetching customer details by customer_id
 app.get('/foxycart/customers/byCustomerId', async (req, res) => {
@@ -689,6 +743,23 @@ app.patch('/foxycart/subscriptions/:subscription_id/send_webhooks', async (req, 
   }
 });
 
+// Route to refresh and display a new access token
+app.get('/test_auth', async (req, res) => {
+  try {
+    // Refresh the token explicitly
+    const newTokenData = await refreshToken();
+
+    // Respond with the new token details
+    res.status(200).json({
+      message: 'New access token generated successfully',
+      token: newTokenData.token,
+      expires_at: newTokenData.expires_at,
+    });
+  } catch (error) {
+    console.error('Error refreshing access token:', error);
+    res.status(500).json({ error: 'Failed to refresh access token' });
+  }
+});
 
 // Start the server
 app.listen(process.env.PORT || 3000, () => {
