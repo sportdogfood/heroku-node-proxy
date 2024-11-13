@@ -695,6 +695,75 @@ app.get('/foxycart/subscriptions/:subscriptionId/carts/items', async (req, res) 
   }
 });
 
+// Route to fetch and handle items from a cart associated with a subscription
+app.get('/foxycart/subscriptions/:subscriptionId/cart/items/item', async (req, res) => {
+  try {
+    const { subscriptionId } = req.params;
+
+    // Step 1: Validate subscriptionId
+    if (!subscriptionId) {
+      return res.status(400).json({ error: 'Subscription ID is required' });
+    }
+
+    // Step 2: Get a valid access token
+    const accessToken = await getCachedOrNewAccessToken();
+
+    // Step 3: Fetch subscription details
+    const subscriptionUrl = `https://api.foxycart.com/subscriptions/${encodeURIComponent(subscriptionId)}`;
+    const subscriptionResponse = await makeFoxyCartRequest('GET', subscriptionUrl, accessToken);
+
+    // Step 4: Extract the cart URL from subscription details
+    if (
+      !subscriptionResponse ||
+      !subscriptionResponse._links ||
+      !subscriptionResponse._links['fx:transaction_template'] ||
+      !subscriptionResponse._links['fx:transaction_template'].href
+    ) {
+      return res.status(404).json({ error: 'Transaction template URL not found in the subscription details' });
+    }
+    const cartUrl = subscriptionResponse._links['fx:transaction_template'].href;
+    const cartId = cartUrl.split('/').pop(); // Extract cartId from the URL
+
+    // Step 5: Fetch items from the cart
+    const itemsUrl = `https://api.foxycart.com/carts/${encodeURIComponent(cartId)}/items`;
+    const itemsResponse = await makeFoxyCartRequest('GET', itemsUrl, accessToken);
+
+    // Step 6: Check total_items and process accordingly
+    if (!itemsResponse || !itemsResponse.total_items) {
+      return res.status(404).json({ error: 'No items found in the cart' });
+    }
+
+    const totalItems = itemsResponse.total_items;
+    const items = itemsResponse._embedded['fx:items'];
+
+    // If total_items is 1, return the single item details
+    if (totalItems === 1) {
+      const singleItem = items[0];
+      const itemHref = singleItem._links.self.href; // URL to the item
+      res.json({ message: 'Single item found', itemHref, itemDetails: singleItem });
+    }
+    // If total_items is more than 1, loop through and return all item details
+    else if (totalItems > 1) {
+      const itemDetails = items.map((item) => {
+        return {
+          itemHref: item._links.self.href,
+          itemName: item.name,
+          itemPrice: item.price,
+          itemQuantity: item.quantity,
+          itemImage: item.image,
+        };
+      });
+      res.json({ message: 'Multiple items found', itemDetails });
+    } else {
+      res.status(404).json({ error: 'Unexpected number of items' });
+    }
+  } catch (error) {
+    console.error('Error fetching cart items:', error);
+    res.status(500).json({ error: 'Failed to retrieve cart items from FoxyCart API' });
+  }
+});
+
+
 // Route for fetching cart details by cartId
 app.get('/foxycart/carts/:cartId', async (req, res) => {
   try {
@@ -750,6 +819,60 @@ app.get('/foxycart/carts/:cartId/items', async (req, res) => {
       res.json(data); // Return the cart items
     } else {
       res.status(404).json({ error: 'Cart items not found or no data returned.' });
+    }
+  } catch (error) {
+    console.error('Error fetching cart items:', error);
+    res.status(500).json({ error: 'Failed to retrieve cart items from FoxyCart API' });
+  }
+});
+
+// Route for fetching a single or multiple items from a cart by cartId
+app.get('/foxycart/carts/:cartId/items/item', async (req, res) => {
+  try {
+    const { cartId } = req.params;
+
+    // Check if cartId is provided
+    if (!cartId) {
+      return res.status(400).json({ error: 'Cart ID is required' });
+    }
+
+    // Get a cached or refreshed FoxyCart access token
+    const accessToken = await getCachedOrNewAccessToken();
+
+    // Construct the FoxyCart API URL for fetching cart items
+    const apiUrl = `https://api.foxycart.com/carts/${encodeURIComponent(cartId)}/items`;
+
+    // Make the request to FoxyCart API to get cart items
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    // Check if data and total_items are returned successfully
+    if (!data || !data.total_items) {
+      return res.status(404).json({ error: 'No items found in the cart' });
+    }
+
+    const totalItems = data.total_items;
+    const items = data._embedded['fx:items'];
+
+    // If total_items is 1, return the single item details
+    if (totalItems === 1) {
+      const singleItem = items[0];
+      const itemHref = singleItem._links.self.href; // URL to the item
+      res.json({ message: 'Single item found', itemHref, itemDetails: singleItem });
+    }
+    // If total_items is more than 1, loop through and return all item details
+    else if (totalItems > 1) {
+      const itemDetails = items.map((item) => {
+        return {
+          itemHref: item._links.self.href,
+          itemName: item.name,
+          itemPrice: item.price,
+          itemQuantity: item.quantity,
+          itemImage: item.image,
+        };
+      });
+      res.json({ message: 'Multiple items found', itemDetails });
+    } else {
+      res.status(404).json({ error: 'Unexpected number of items' });
     }
   } catch (error) {
     console.error('Error fetching cart items:', error);
