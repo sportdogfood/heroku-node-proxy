@@ -794,48 +794,44 @@ app.patch('/foxycart/subscriptions/:subscription_id/send_webhooks', async (req, 
 });
 
 // Route for updating customer's last name using PATCH
-// Route for updating customer's last name using PATCH
-app.patch('/foxycart/customers/:customerId/patch', async (req, res) => {
+// New route for updating the customer's last name
+app.patch('/foxycart/customers/update-last-name/:customerId', async (req, res) => {
   try {
     const { customerId } = req.params;
-    const { last_name } = req.query; // Taking the new last_name from query parameters
+    const { last_name } = req.body; // Taking the new last_name from the request body
 
+    // Check if customerId and last_name are provided
     if (!customerId || !last_name) {
       return res.status(400).json({ error: 'Customer ID and new last name are required' });
     }
 
-    // Step 1: Get a valid access token
+    // Get a cached or refreshed FoxyCart access token
     const accessToken = await getCachedOrNewAccessToken();
 
-    // Step 2: Create a PATCH payload that only updates the last_name
-    const patchPayload = { last_name };
+    // FoxyCart API URL for updating the customer
+    const apiUrl = `https://api.foxycart.com/customers/${customerId}`;
 
-    // Step 3: Perform a PATCH request to update the last_name
-    const patchUrl = `https://api.foxycart.com/customers/${customerId}`;
-    const patchResponse = await fetch(patchUrl, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(patchPayload), // Send only the fields you want to update
-    });
+    // Construct the payload with the new last_name
+    const body = {
+      last_name
+    };
 
-    if (!patchResponse.ok) {
-      const errorText = await patchResponse.text(); // Get error details from the response
-      throw new Error(`PATCH request failed with status ${patchResponse.status}: ${errorText}`);
-    }
+    // Make the PATCH request to FoxyCart API to update the last name
+    const data = await makeFoxyCartRequest('PATCH', apiUrl, accessToken, body);
 
-    const updatedCustomerData = await patchResponse.json();
-    console.log('Updated customer data:', updatedCustomerData);
+    // Log the response data for debugging
+    console.log('Last name update response:', JSON.stringify(data, null, 2));
 
-    // Respond with the updated customer data
-    res.status(200).json(updatedCustomerData);
+    // If the request was successful, respond with a success message
+    return res.status(200).json({ message: 'Last name updated successfully', data });
+
   } catch (error) {
+    // Handle any errors during the process
     console.error('Error updating customer last name:', error);
-    res.status(500).json({ error: 'Failed to update customer last name', details: error.message });
+    res.status(500).json({ error: 'Failed to update customer last name' });
   }
 });
+
 
 
 
