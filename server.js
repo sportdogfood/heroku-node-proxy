@@ -569,7 +569,7 @@ app.get('/foxycart/subscriptions', async (req, res) => {
 });
 
 // Route for fetching subscription details by subscriptionId
-app.get('/subscriptions/:subscriptionId', async (req, res) => {
+app.get('/foxycart/subscriptions/:subscriptionId', async (req, res) => {
   try {
     const { subscriptionId } = req.params;
 
@@ -598,6 +598,53 @@ app.get('/subscriptions/:subscriptionId', async (req, res) => {
     res.status(500).json({ error: 'Failed to retrieve subscription details from FoxyCart API' });
   }
 });
+
+
+// Route for fetching the cart details associated with a subscription
+app.get('/foxycart/subscriptions/:subscriptionId/cart', async (req, res) => {
+  try {
+    const { subscriptionId } = req.params;
+
+    // Check if subscriptionId is provided
+    if (!subscriptionId) {
+      return res.status(400).json({ error: 'Subscription ID is required' });
+    }
+
+    // Step 1: Get a cached or refreshed FoxyCart access token
+    const accessToken = await getCachedOrNewAccessToken();
+
+    // Step 2: Perform a GET request to fetch subscription details
+    const subscriptionUrl = `https://api.foxycart.com/subscriptions/${encodeURIComponent(subscriptionId)}`;
+    const subscriptionResponse = await makeFoxyCartRequest('GET', subscriptionUrl, accessToken);
+
+    // Check if the subscription response contains the transaction template link
+    if (
+      !subscriptionResponse ||
+      !subscriptionResponse._links ||
+      !subscriptionResponse._links['fx:transaction_template'] ||
+      !subscriptionResponse._links['fx:transaction_template'].href
+    ) {
+      return res.status(404).json({ error: 'Transaction template URL not found in the subscription details' });
+    }
+
+    // Step 3: Extract the transaction template URL
+    const cartUrl = subscriptionResponse._links['fx:transaction_template'].href;
+
+    // Step 4: Perform a GET request to fetch cart details using the extracted URL
+    const cartResponse = await makeFoxyCartRequest('GET', cartUrl, accessToken);
+
+    // Check if cart details are returned successfully
+    if (cartResponse) {
+      res.json(cartResponse); // Return the cart details
+    } else {
+      res.status(404).json({ error: 'Cart details not found or no data returned.' });
+    }
+  } catch (error) {
+    console.error('Error fetching cart details for subscription:', error);
+    res.status(500).json({ error: 'Failed to retrieve cart details from FoxyCart API' });
+  }
+});
+
 
 // Route for fetching customer transactions
 app.get('/foxycart/transactions', async (req, res) => {
