@@ -696,7 +696,7 @@ app.get('/foxycart/subscriptions/:subscriptionId/cart/items', async (req, res) =
 });
 
 // Route for fetching cart details by cartId
-app.get('/foxycart/cart/:cartId', async (req, res) => {
+app.get('/foxycart/carts/:cartId', async (req, res) => {
   try {
     const { cartId } = req.params;
 
@@ -727,7 +727,7 @@ app.get('/foxycart/cart/:cartId', async (req, res) => {
 });
 
 // Route for fetching items from a cart by cartId
-app.get('/foxycart/cart/:cartId/items', async (req, res) => {
+app.get('/foxycart/carts/:cartId/items', async (req, res) => {
   try {
     const { cartId } = req.params;
 
