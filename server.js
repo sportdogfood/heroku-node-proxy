@@ -557,24 +557,27 @@ app.patch('/foxycart/customers/update-password/:customerId', async (req, res) =>
   }
 });
 
+
 // Route for fetching customer subscriptions
 app.get('/foxycart/autos/:customerId', async (req, res) => {
   try {
-    const { customer_id } = req.query;
+    // Extract customerId from route parameters, not query
+    const { customerId } = req.params;
 
-    if (!customer_id) {
+    // Validate customerId
+    if (!customerId) {
       return res.status(400).json({ error: 'Customer ID is required' });
     }
 
-    console.log('Received customer_id:', customer_id);
+    console.log('Received customerId:', customerId);
 
     // Get access token from cache or refresh
     const accessToken = await getCachedOrNewAccessToken();
     console.log('Access token:', accessToken);
 
     // Construct the FoxyCart API URL for subscriptions
-    const apiUrl = `https://api.foxycart.com/stores/50526/subscriptions?customer_id=${customer_id}&is_active=true`;
-    console.log(`Fetching subscriptions for customer ID: ${customer_id} with URL: ${apiUrl}`);
+    const apiUrl = `https://api.foxycart.com/stores/50526/subscriptions?customer_id=${encodeURIComponent(customerId)}&is_active=true`;
+    console.log(`Fetching subscriptions for customer ID: ${customerId} with URL: ${apiUrl}`);
 
     // Make request to FoxyCart API
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
@@ -611,6 +614,7 @@ app.get('/foxycart/autos/:customerId', async (req, res) => {
     res.status(500).json({ error: 'Error fetching customer subscriptions from FoxyCart API' });
   }
 });
+
 
 // Route for fetching customer subscriptions
 app.get('/foxycart/subscriptions', async (req, res) => {
