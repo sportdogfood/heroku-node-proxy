@@ -246,6 +246,126 @@ app.get('/foxycart/customers/:customerId/attributes', async (req, res) => {
   }
 });
 
+// Route for fetching specific customer CRM ID attribute
+app.get('/foxycart/customers/:customerId/attributes/attributes/crm', async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    // Check if customerId is provided
+    if (!customerId) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    // Get access token from cache or refresh
+    const accessToken = await getCachedOrNewAccessToken();
+    const apiUrl = `https://api.foxycart.com/customers/${encodeURIComponent(customerId)}/attributes`;
+
+    // Make the request to FoxyCart API to get customer attributes
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    // Check if data and the attributes are returned successfully
+    if (data && data._embedded && data._embedded['fx:attributes']) {
+      const attributes = data._embedded['fx:attributes'];
+
+      // Initialize the result object to store CRM ID
+      let crmId = {};
+
+      // Loop through each attribute and find the "Zoho_CRM_ID"
+      attributes.forEach(attribute => {
+        if (attribute.name === 'Zoho_CRM_ID') {
+          crmId = { value: attribute.value };
+        }
+      });
+
+      // Return the result object
+      res.json(crmId);
+    } else {
+      res.status(404).json({ error: 'Customer attributes not found.' });
+    }
+  } catch (error) {
+    console.error('Error fetching customer CRM ID attribute:', error);
+    res.status(500).json({ error: 'Failed to retrieve customer CRM ID from FoxyCart API' });
+  }
+});
+
+
+// Route for fetching specific customer attributes
+app.get('/foxycart/customers/:customerId/attributes/attributes/thrive', async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    // Check if customerId is provided
+    if (!customerId) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    // Get access token from cache or refresh
+    const accessToken = await getCachedOrNewAccessToken();
+    const apiUrl = `https://api.foxycart.com/customers/${encodeURIComponent(customerId)}/attributes`;
+
+    // Make the request to FoxyCart API to get customer attributes
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    // Check if data and the attributes are returned successfully
+    if (data && data._embedded && data._embedded['fx:attributes']) {
+      const attributes = data._embedded['fx:attributes'];
+
+      // Initialize the result object to store required attributes
+      const result = {
+        loyalty_points: null,
+        loyalty_level: null,
+        zoho_crm_id: null,
+        loyalty_coupon: null
+      };
+
+      // Loop through each attribute and find the desired ones
+      attributes.forEach(attribute => {
+        switch (attribute.name) {
+          case 'Loyalty_Points':
+            result.loyalty_points = {
+              value: attribute.value,
+              href: attribute._links.self.href
+            };
+            break;
+          case 'Loyalty_Level':
+            result.loyalty_level = {
+              value: attribute.value,
+              href: attribute._links.self.href
+            };
+            break;
+          case 'Zoho_CRM_ID':
+            result.zoho_crm_id = {
+              value: attribute.value,
+              href: attribute._links.self.href
+            };
+            break;
+          case 'Loyalty_Coupon':
+            result.loyalty_coupon = {
+              value: attribute.value,
+              href: attribute._links.self.href
+            };
+            break;
+        }
+      });
+
+      // Ensure no attribute is left as null, assign an empty object if null
+      Object.keys(result).forEach(key => {
+        if (result[key] === null) {
+          result[key] = {};
+        }
+      });
+
+      // Return the result object
+      res.json(result);
+    } else {
+      res.status(404).json({ error: 'Customer attributes not found.' });
+    }
+  } catch (error) {
+    console.error('Error fetching customer attributes:', error);
+    res.status(500).json({ error: 'Failed to retrieve customer attributes from FoxyCart API' });
+  }
+});
+
 // Route for fetching a specific attribute by customerId and searchname
 app.get('/foxycart/customers/:customerId/attributes/attributes=:searchname', async (req, res) => {
   try {
