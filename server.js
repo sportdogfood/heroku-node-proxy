@@ -153,6 +153,56 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
   }
 });
 
+// Route for authenticating admin using a unified Heroku config variable
+app.post('/foxycart/customer/adminauth', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Check if email is provided
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Retrieve the unified password from Heroku config variable
+    const password = process.env.UNIFIED;
+    if (!password) {
+      return res.status(500).json({ error: 'Server configuration error: missing unified password' });
+    }
+
+    // Get a new FoxyCart access token
+    const accessToken = await getCachedOrNewAccessToken();
+    const apiUrl = `https://secure.sportdogfood.com/s/customer/authenticate`;
+
+    // Make the request to FoxyCart for admin authentication
+    const data = await makeFoxyCartRequest('POST', apiUrl, accessToken, { email, password });
+
+    // Log the entire response for debugging purposes
+    console.log('Admin Authentication response from FoxyCart:', JSON.stringify(data, null, 2));
+
+    // Check if the response contains the necessary session details
+    if (data && data.session_token && data.jwt && data.sso) {
+      // Authentication succeeded, return the session details
+      res.json({
+        jwt: data.jwt,
+        sso: data.sso,
+        session_token: data.session_token,
+        expires_in: data.expires_in,
+        fc_customer_id: new URLSearchParams(new URL(data.sso).search).get('fc_customer_id'),
+        fc_auth_token: new URLSearchParams(new URL(data.sso).search).get('fc_auth_token')
+      });
+    } else {
+      // If authentication fails, log and return a 401 error
+      console.error('Authentication failed, invalid response:', JSON.stringify(data));
+      res.status(401).json({ error: 'Authentication failed. Invalid email or unified credential.' });
+    }
+  } catch (error) {
+    // Log any errors that occur during the process
+    console.error('Error authenticating admin:', error);
+
+    // Return a 500 error with a generic message
+    res.status(500).json({ error: 'Error authenticating admin from FoxyCart API' });
+  }
+});
 
 
 // Route for direct email search 
@@ -289,7 +339,7 @@ app.get('/foxycart/customers/:customerId/attributes/attributes/crm', async (req,
 });
 
 
-// Route for fetching specific customer attributes
+// Route for fetching specific customer attributes and evaluating coupon eligibility
 app.get('/foxycart/customers/:customerId/attributes/attributes/thrive', async (req, res) => {
   try {
     const { customerId } = req.params;
@@ -315,19 +365,25 @@ app.get('/foxycart/customers/:customerId/attributes/attributes/thrive', async (r
         loyalty_points: null,
         loyalty_level: null,
         zoho_crm_id: null,
-        loyalty_coupon: null
+        loyalty_coupon: null,
+        isEligibleForCoupon: false
       };
+
+      let loyaltyPoints = 0;
+      let loyaltyLevel = '';
 
       // Loop through each attribute and find the desired ones
       attributes.forEach(attribute => {
         switch (attribute.name) {
           case 'Loyalty_Points':
+            loyaltyPoints = parseInt(attribute.value, 10) || 0;
             result.loyalty_points = {
               value: attribute.value,
               href: attribute._links.self.href
             };
             break;
           case 'Loyalty_Level':
+            loyaltyLevel = attribute.value;
             result.loyalty_level = {
               value: attribute.value,
               href: attribute._links.self.href
@@ -355,6 +411,15 @@ app.get('/foxycart/customers/:customerId/attributes/attributes/thrive', async (r
         }
       });
 
+      // Evaluate if the user is eligible for a coupon
+      if (
+        (loyaltyPoints >= 300 && loyaltyLevel === 'Red') ||
+        (loyaltyPoints >= 1000 && loyaltyLevel === 'White') ||
+        (loyaltyPoints >= 1500 && loyaltyLevel === 'Blue')
+      ) {
+        result.isEligibleForCoupon = true;
+      }
+
       // Return the result object
       res.json(result);
     } else {
@@ -365,6 +430,7 @@ app.get('/foxycart/customers/:customerId/attributes/attributes/thrive', async (r
     res.status(500).json({ error: 'Failed to retrieve customer attributes from FoxyCart API' });
   }
 });
+
 
 // Route for fetching a specific attribute by customerId and searchname
 app.get('/foxycart/customers/:customerId/attributes/attributes=:searchname', async (req, res) => {
