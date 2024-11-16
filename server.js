@@ -153,10 +153,11 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
   }
 });
 
+
 // Route for authenticating admin using a unified Heroku config variable
-app.post('/foxycart/customer/adminauth', async (req, res) => {
+app.post('/foxycart/customers/adminauth/:email', async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email } = req.params; // Extract email from URL parameters
 
     // Check if email is provided
     if (!email) {
@@ -203,6 +204,7 @@ app.post('/foxycart/customer/adminauth', async (req, res) => {
     res.status(500).json({ error: 'Error authenticating admin from FoxyCart API' });
   }
 });
+
 
 
 // Route for direct email search 
