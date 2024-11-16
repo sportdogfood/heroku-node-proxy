@@ -558,6 +558,61 @@ app.patch('/foxycart/customers/update-password/:customerId', async (req, res) =>
 });
 
 // Route for fetching customer subscriptions
+app.get('/foxycart/autos/:customerId', async (req, res) => {
+  try {
+    const { customer_id } = req.query;
+
+    if (!customer_id) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    console.log('Received customer_id:', customer_id);
+
+    // Get access token from cache or refresh
+    const accessToken = await getCachedOrNewAccessToken();
+    console.log('Access token:', accessToken);
+
+    // Construct the FoxyCart API URL for subscriptions
+    const apiUrl = `https://api.foxycart.com/stores/50526/subscriptions?customer_id=${customer_id}&is_active=true`;
+    console.log(`Fetching subscriptions for customer ID: ${customer_id} with URL: ${apiUrl}`);
+
+    // Make request to FoxyCart API
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+    console.log('Raw data from FoxyCart API:', JSON.stringify(data, null, 2));
+
+    // Extracting total_items from the response
+    const totalItems = data.total_items || 0; // Default to 0 if total_items is not present
+
+    if (data._embedded && data._embedded['fx:subscriptions']) {
+      const activeSubscriptions = data._embedded['fx:subscriptions'].filter(sub => sub.is_active === true);
+
+      if (activeSubscriptions.length > 0) {
+        // Include total_items in the response along with active subscriptions
+        res.json({
+          total_items: totalItems,
+          subscriptions: activeSubscriptions
+        });
+      } else {
+        // Return empty subscriptions but include total_items to indicate count
+        res.status(200).json({
+          total_items: totalItems,
+          subscriptions: []
+        });
+      }
+    } else {
+      // Return an empty subscriptions array but include total_items to indicate count
+      res.status(200).json({
+        total_items: totalItems,
+        subscriptions: []
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching customer subscriptions:', error);
+    res.status(500).json({ error: 'Error fetching customer subscriptions from FoxyCart API' });
+  }
+});
+
+// Route for fetching customer subscriptions
 app.get('/foxycart/subscriptions', async (req, res) => {
   try {
     const { customer_id } = req.query;
