@@ -561,7 +561,7 @@ app.patch('/foxycart/customers/update-password/:customerId', async (req, res) =>
 // Route for fetching customer subscriptions
 app.get('/foxycart/autos/:customerId', async (req, res) => {
   try {
-    // Extract customerId from route parameters, not query
+    // Extract customerId from the URL parameters
     const { customerId } = req.params;
 
     // Validate customerId
@@ -614,6 +614,7 @@ app.get('/foxycart/autos/:customerId', async (req, res) => {
     res.status(500).json({ error: 'Error fetching customer subscriptions from FoxyCart API' });
   }
 });
+
 
 
 // Route for fetching customer subscriptions
