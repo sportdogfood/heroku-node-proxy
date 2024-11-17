@@ -154,57 +154,7 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
   }
 });
 
-app.post('/foxycart/customers/adminauth', async (req, res) => {
-  try {
-    const { email } = req.body; // Extract email from request body instead of params
-
-    // Check if email is provided
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
-    }
-
-    // Retrieve the unified password from Heroku config variable
-    const password = process.env.UNIFIED;
-    if (!password) {
-      return res.status(500).json({ error: 'Server configuration error: missing unified password' });
-    }
-
-    // Get a new FoxyCart access token
-    const accessToken = await getCachedOrNewAccessToken();
-    const apiUrl = `https://secure.sportdogfood.com/s/customer/authenticate`;
-
-    // Make the request to FoxyCart for admin authentication
-    const data = await makeFoxyCartRequest('POST', apiUrl, accessToken, { email, password });
-
-    // Log the entire response for debugging purposes
-    console.log('Admin Authentication response from FoxyCart:', JSON.stringify(data, null, 2));
-
-    // Check if the response contains the necessary session details
-    if (data && data.session_token && data.jwt && data.sso) {
-      // Authentication succeeded, return the session details
-      res.json({
-        jwt: data.jwt,
-        sso: data.sso,
-        session_token: data.session_token,
-        expires_in: data.expires_in,
-        fc_customer_id: new URLSearchParams(new URL(data.sso).search).get('fc_customer_id'),
-        fc_auth_token: new URLSearchParams(new URL(data.sso).search).get('fc_auth_token')
-      });
-    } else {
-      // If authentication fails, log and return a 401 error
-      console.error('Authentication failed, invalid response:', JSON.stringify(data));
-      res.status(401).json({ error: 'Authentication failed. Invalid email or unified credential.' });
-    }
-  } catch (error) {
-    // Log any errors that occur during the process
-    console.error('Error authenticating admin:', error);
-
-    // Return a 500 error with a generic message
-    res.status(500).json({ error: 'Error authenticating admin from FoxyCart API' });
-  }
-});
-
-// Route for authenticating admin using a unified password (updated version)
+// Existing Route for Authenticating Admin
 app.post('/foxycart/customers/adminauth/:email', async (req, res) => {
   try {
     const { email } = req.params; // Extract email from URL parameters
@@ -214,8 +164,8 @@ app.post('/foxycart/customers/adminauth/:email', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Use the given unified password value directly for testing purposes
-    const password = 'fFkwg2uWmg4Z89PUr3sP'; // Explicitly hardcoded password
+    // Retrieve the unified password from Heroku config variable
+    const password = process.env.UNIFIED || 'fFkwg2uWmg4Z89PUr3sP'; // Default to test password if not available
     if (!password) {
       return res.status(500).json({ error: 'Server configuration error: missing unified password' });
     }
@@ -254,6 +204,58 @@ app.post('/foxycart/customers/adminauth/:email', async (req, res) => {
     res.status(500).json({ error: 'Error authenticating admin from FoxyCart API' });
   }
 });
+
+// New Route for Authenticating Admin via Query Parameters
+app.get('/foxycart/customers/admin', async (req, res) => {
+  try {
+    const { email, admin } = req.query; // Extract email and admin flag from query parameters
+
+    // Check if email and admin flag are provided
+    if (!email || admin !== 'true') {
+      return res.status(400).json({ error: 'Valid email and admin flag are required' });
+    }
+
+    // Retrieve the unified password directly for simplicity
+    const password = process.env.UNIFIED || 'fFkwg2uWmg4Z89PUr3sP';
+    if (!password) {
+      return res.status(500).json({ error: 'Server configuration error: missing unified password' });
+    }
+
+    // Get a new FoxyCart access token
+    const accessToken = await getCachedOrNewAccessToken();
+    const apiUrl = `https://secure.sportdogfood.com/s/customer/authenticate`;
+
+    // Make the request to FoxyCart for admin authentication
+    const data = await makeFoxyCartRequest('POST', apiUrl, accessToken, { email, password });
+
+    // Log the entire response for debugging purposes
+    console.log('Admin Authentication response from FoxyCart:', JSON.stringify(data, null, 2));
+
+    // Check if the response contains the necessary session details
+    if (data && data.session_token && data.jwt && data.sso) {
+      // Authentication succeeded, return the session details
+      res.json({
+        jwt: data.jwt,
+        sso: data.sso,
+        session_token: data.session_token,
+        expires_in: data.expires_in,
+        fc_customer_id: new URLSearchParams(new URL(data.sso).search).get('fc_customer_id'),
+        fc_auth_token: new URLSearchParams(new URL(data.sso).search).get('fc_auth_token')
+      });
+    } else {
+      // If authentication fails, log and return a 401 error
+      console.error('Authentication failed, invalid response:', JSON.stringify(data));
+      res.status(401).json({ error: 'Authentication failed. Invalid email or unified credential.' });
+    }
+  } catch (error) {
+    // Log any errors that occur during the process
+    console.error('Error authenticating admin:', error);
+
+    // Return a 500 error with a generic message
+    res.status(500).json({ error: 'Error authenticating admin from FoxyCart API' });
+  }
+});
+
 
 app.post('/foxycart/customers/admin', async (req, res) => {
   try {
