@@ -1601,6 +1601,59 @@ app.use('/foxycart/proxy/customer', async (req, res) => {
   }
 });
 
+// Route to proxy default billing address request
+app.get('/foxycart/proxy/customer/default_billing_address', async (req, res) => {
+  try {
+    // Extract the customer_id from the request query
+    const customerId = req.query.customer_id;
+
+    if (!customerId) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    // Use cached or new access token for authentication
+    const accessToken = await getCachedOrNewAccessToken();
+
+    // Make the request to FoxyCart to get default billing address
+    const apiUrl = `https://api.foxycart.com/customers/${encodeURIComponent(customerId)}/default_billing_address`;
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    // Return the default billing address to the front end
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching default billing address:', error);
+    res.status(500).json({ error: 'Failed to retrieve default billing address from FoxyCart API' });
+  }
+});
+
+
+// Route to proxy transactions request
+app.get('/foxycart/proxy/customer/transactions', async (req, res) => {
+  try {
+    const { customer_id } = req.query;
+
+    if (!customer_id) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    // Get a cached or new FoxyCart access token
+    const accessToken = await getCachedOrNewAccessToken();
+
+    // Make the request to FoxyCart API to get transactions
+    const apiUrl = `https://api.foxycart.com/stores/50526/transactions?customer_id=${customer_id}&limit=6&zoom=items,items:item_options,items:item_category`;
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    if (data._embedded && data._embedded['fx:transactions']) {
+      res.json(data._embedded['fx:transactions']);
+    } else {
+      res.status(404).json({ error: 'Transactions not found or no data returned.' });
+    }
+  } catch (error) {
+    console.error('Error fetching transactions:', error);
+    res.status(500).json({ error: 'Failed to retrieve transactions from FoxyCart API' });
+  }
+});
+
 
 // Route for updating customer's last name using PATCH
 // New route for updating the customer's last name
@@ -1641,6 +1694,32 @@ app.patch('/foxycart/customers/update-last-name/:customerId', async (req, res) =
   }
 });
 
+app.post('/foxycart/proxy/customer/session', async (req, res) => {
+  try {
+    const { type, credential } = req.body;
+
+    if (type !== 'password' || !credential.email || !credential.password) {
+      return res.status(400).json({ error: 'Invalid credentials' });
+    }
+
+    const accessToken = await getCachedOrNewAccessToken();
+    const apiUrl = 'https://secure.sportdogfood.com/s/customer/authenticate';
+    const data = await makeFoxyCartRequest('POST', apiUrl, accessToken, credential);
+
+    if (data && data.session_token) {
+      res.status(200).json({
+        session_token: data.session_token,
+        jwt: data.jwt,
+        sso: data.sso,
+      });
+    } else {
+      res.status(401).json({ error: 'Authentication failed' });
+    }
+  } catch (error) {
+    console.error('Authentication error:', error);
+    res.status(500).json({ error: 'Internal authentication error' });
+  }
+});
 
 
 
