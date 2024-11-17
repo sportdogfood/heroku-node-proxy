@@ -3,6 +3,7 @@ const fetch = require('node-fetch');
 const cors = require('cors'); // Import cors
 const morgan = require('morgan'); // For logging
 const app = express();
+require('dotenv').config();
 
 // Use morgan for logging HTTP requests
 app.use(morgan('combined'));
