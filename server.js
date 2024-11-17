@@ -1694,6 +1694,7 @@ app.patch('/foxycart/customers/update-last-name/:customerId', async (req, res) =
   }
 });
 
+// Proxy route for handling customer authentication requests
 app.post('/foxycart/proxy/customer/session', async (req, res) => {
   try {
     const { type, credential } = req.body;
@@ -1704,6 +1705,7 @@ app.post('/foxycart/proxy/customer/session', async (req, res) => {
 
     const accessToken = await getCachedOrNewAccessToken();
     const apiUrl = 'https://secure.sportdogfood.com/s/customer/authenticate';
+
     const data = await makeFoxyCartRequest('POST', apiUrl, accessToken, credential);
 
     if (data && data.session_token) {
@@ -1716,7 +1718,7 @@ app.post('/foxycart/proxy/customer/session', async (req, res) => {
       res.status(401).json({ error: 'Authentication failed' });
     }
   } catch (error) {
-    console.error('Authentication error:', error);
+    console.error('Error during customer authentication:', error);
     res.status(500).json({ error: 'Internal authentication error' });
   }
 });
