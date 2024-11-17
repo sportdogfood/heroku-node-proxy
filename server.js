@@ -1566,6 +1566,42 @@ app.get('/foxycart/transactions/:transactionId/shipments', async (req, res) => {
   }
 });
 
+// Proxy route to handle requests from <foxy-customer-api> element
+app.use('/foxycart/proxy/customer', async (req, res) => {
+  try {
+    // Use the original request method, headers, and body if present
+    const method = req.method;
+    const headers = {
+      ...req.headers,
+      'Authorization': `Bearer ${await getCachedOrNewAccessToken()}`,
+    };
+    delete headers['host']; // Remove 'host' to prevent potential conflicts
+    const body = req.body;
+
+    // Construct the FoxyCart API URL based on the incoming request
+    const apiUrl = `https://api.foxycart.com${req.originalUrl.replace('/foxycart/proxy/customer', '')}`;
+
+    // Make the request to FoxyCart API
+    const response = await fetch(apiUrl, {
+      method,
+      headers,
+      body: method !== 'GET' ? JSON.stringify(body) : null,
+    });
+
+    // Handle the response
+    const responseData = await response.json();
+    if (response.ok) {
+      res.status(response.status).json(responseData);
+    } else {
+      res.status(response.status).json({ error: responseData });
+    }
+  } catch (error) {
+    console.error('Error proxying customer API request:', error);
+    res.status(500).json({ error: 'Failed to handle customer API request' });
+  }
+});
+
+
 // Route for updating customer's last name using PATCH
 // New route for updating the customer's last name
 app.patch('/foxycart/customers/update-last-name/:customerId', async (req, res) => {
