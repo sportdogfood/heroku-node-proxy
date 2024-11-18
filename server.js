@@ -1101,6 +1101,30 @@ app.get('/foxycart/subscriptions/:subscriptionId/cart/items/item', async (req, r
   }
 });
 
+// Route to obtain a new fcsid (FoxyCart Session ID)
+app.put('/foxycart/carts/getfcsid', async (req, res) => {
+  try {
+    // Get a cached or refreshed FoxyCart access token
+    const accessToken = await getCachedOrNewAccessToken();
+
+    // Construct the FoxyCart API URL for the cart
+    const apiUrl = 'https://api.foxycart.com/carts';
+
+    // Make the PUT request to FoxyCart API to create or refresh the cart session
+    const data = await makeFoxyCartRequest('PUT', apiUrl, accessToken);
+
+    // Check if data is returned successfully
+    if (data && data.session_id) {
+      // Return the fcsid to the client
+      res.json({ fcsid: data.session_id });
+    } else {
+      res.status(500).json({ error: 'Failed to retrieve fcsid from FoxyCart API' });
+    }
+  } catch (error) {
+    console.error('Error obtaining fcsid:', error);
+    res.status(500).json({ error: 'Failed to retrieve fcsid from FoxyCart API' });
+  }
+});
 
 // Route for fetching cart details by cartId
 app.get('/foxycart/carts/:cartId', async (req, res) => {
