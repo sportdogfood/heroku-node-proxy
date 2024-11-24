@@ -155,7 +155,7 @@ app.post('/foxycart/customer/authenticate', async (req, res) => {
 });
 
 // Updated Route for Authenticating Admin Using Request Body (POST)
-app.post('/foxycart/customer/adminauth', async (req, res) => {
+app.post('/foxycart/customer/silentauth', async (req, res) => {
   try {
     const { email } = req.body; // Extract email from the request body
 
