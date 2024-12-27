@@ -1528,6 +1528,89 @@ app.get('/foxycart/transactions/:transactionId/items/item', async (req, res) => 
   }
 });
 
+// Route for fetching discounts from a transaction by transactionId
+app.get('/foxycart/transactions/:transactionId/discounts', async (req, res) => {
+  try {
+    const { transactionId } = req.params;
+
+    // Check if transactionId is provided
+    if (!transactionId) {
+      return res.status(400).json({ error: 'Transaction ID is required' });
+    }
+
+    // Get a cached or refreshed FoxyCart access token
+    const accessToken = await getCachedOrNewAccessToken();
+
+    // Construct the FoxyCart API URL for fetching transaction discounts
+    const apiUrl = `https://api.foxycart.com/transactions/${encodeURIComponent(transactionId)}/discounts`;
+
+    // Make the request to FoxyCart API to get transaction discounts
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    // Check if data is returned successfully
+    if (data && data._embedded && data._embedded['fx:discounts']) {
+      res.json(data._embedded['fx:discounts']); // Return the transaction discounts
+    } else {
+      res.status(404).json({ error: 'Transaction discounts not found or no data returned.' });
+    }
+  } catch (error) {
+    console.error('Error fetching transaction discounts:', error);
+    res.status(500).json({ error: 'Failed to retrieve transaction discounts from FoxyCart API' });
+  }
+});
+
+// Route for fetching a single or multiple discounts from a transaction by transactionId
+app.get('/foxycart/transactions/:transactionId/discounts/discount', async (req, res) => {
+  try {
+    const { transactionId } = req.params;
+
+    // Check if transactionId is provided
+    if (!transactionId) {
+      return res.status(400).json({ error: 'Transaction ID is required' });
+    }
+
+    // Get a cached or refreshed FoxyCart access token
+    const accessToken = await getCachedOrNewAccessToken();
+
+    // Construct the FoxyCart API URL for fetching transaction discounts
+    const apiUrl = `https://api.foxycart.com/transactions/${encodeURIComponent(transactionId)}/discounts`;
+
+    // Make the request to FoxyCart API to get transaction discounts
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    // Check if data and total_discounts are returned successfully
+    if (!data || !data.total_discounts) {
+      return res.status(404).json({ error: 'No discounts found in the transaction' });
+    }
+
+    const totalDiscounts = data.total_discounts;
+    const discounts = data._embedded['fx:discounts'];
+
+    // If total_discounts is 1, return the single discount details
+    if (totalDiscounts === 1) {
+      const singleDiscount = discounts[0];
+      const discountHref = singleDiscount._links.self.href; // URL to the discount
+      res.json({ message: 'Single discount found', discountHref, discountDetails: singleDiscount });
+    }
+    // If total_discounts is more than 1, loop through and return all discount details
+    else if (totalDiscounts > 1) {
+      const discountDetails = discounts.map((discount) => {
+        return {
+          discountHref: discount._links.self.href,
+          discountName: discount.name,
+          discountAmount: discount.amount,
+        };
+      });
+      res.json({ message: 'Multiple discounts found', discountDetails });
+    } else {
+      res.status(404).json({ error: 'Unexpected number of discounts' });
+    }
+  } catch (error) {
+    console.error('Error fetching transaction discounts:', error);
+    res.status(500).json({ error: 'Failed to retrieve transaction discounts from FoxyCart API' });
+  }
+});
+
 // Route for fetching payment details from a transaction by transactionId
 app.get('/foxycart/transactions/:transactionId/payments', async (req, res) => {
   try {
