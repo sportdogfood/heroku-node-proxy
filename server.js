@@ -1528,6 +1528,108 @@ app.get('/foxycart/transactions/:transactionId/items/item', async (req, res) => 
   }
 });
 
+// Route for fetching items from a transaction by transactionId
+app.get('/foxycart/transactions/:transactionId/items1', async (req, res) => {
+  try {
+    const { transactionId } = req.params;
+
+    // Check if transactionId is provided
+    if (!transactionId) {
+      return res.status(400).json({ error: 'Transaction ID is required' });
+    }
+
+    // Get a cached or refreshed FoxyCart access token
+    const accessToken = await getCachedOrNewAccessToken();
+
+    // Construct the FoxyCart API URL for fetching transaction items
+    const apiUrl = `https://api.foxycart.com/transactions/${encodeURIComponent(transactionId)}/items`;
+
+    // Make the request to FoxyCart API to get transaction items
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    // Calculate total items and total quantity
+    const totalItems = data && data.total_items ? data.total_items : 0;
+    const items = data && data._embedded && data._embedded['fx:items'] ? data._embedded['fx:items'] : [];
+    const totalQuantity = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+    // Always include messages regardless of totalItems
+    res.json({
+      message: totalItems > 0 ? `Found ${totalItems} items with a total quantity of ${totalQuantity}.` : 'No items found.',
+      totalItems,
+      totalQuantity,
+      items
+    });
+  } catch (error) {
+    console.error('Error fetching transaction items:', error);
+    res.status(500).json({ error: 'Failed to retrieve transaction items from FoxyCart API' });
+  }
+});
+
+// Route for fetching a single or multiple items from a transaction by transactionId
+app.get('/foxycart/transactions/:transactionId/items/item1', async (req, res) => {
+  try {
+    const { transactionId } = req.params;
+
+    // Check if transactionId is provided
+    if (!transactionId) {
+      return res.status(400).json({ error: 'Transaction ID is required' });
+    }
+
+    // Get a cached or refreshed FoxyCart access token
+    const accessToken = await getCachedOrNewAccessToken();
+
+    // Construct the FoxyCart API URL for fetching transaction items
+    const apiUrl = `https://api.foxycart.com/transactions/${encodeURIComponent(transactionId)}/items`;
+
+    // Make the request to FoxyCart API to get transaction items
+    const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
+
+    // Calculate total items and total quantity
+    const totalItems = data && data.total_items ? data.total_items : 0;
+    const items = data && data._embedded && data._embedded['fx:items'] ? data._embedded['fx:items'] : [];
+    const totalQuantity = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+    // Always include messages regardless of totalItems
+    if (totalItems === 1) {
+      const singleItem = items[0];
+      const itemHref = singleItem._links.self.href; // URL to the item
+      res.json({
+        message: `Single item found with a total quantity of ${totalQuantity}.`,
+        totalItems,
+        totalQuantity,
+        itemHref,
+        itemDetails: singleItem
+      });
+    } else if (totalItems > 1) {
+      const itemDetails = items.map((item) => {
+        return {
+          itemHref: item._links.self.href,
+          itemName: item.name,
+          itemPrice: item.price,
+          itemQuantity: item.quantity,
+          itemImage: item.image,
+        };
+      });
+      res.json({
+        message: `Multiple items found with a total quantity of ${totalQuantity}.`,
+        totalItems,
+        totalQuantity,
+        itemDetails
+      });
+    } else {
+      res.json({
+        message: 'No items found.',
+        totalItems,
+        totalQuantity,
+        items: []
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching transaction items:', error);
+    res.status(500).json({ error: 'Failed to retrieve transaction items from FoxyCart API' });
+  }
+});
+
 // Route for fetching discounts from a transaction by transactionId
 app.get('/foxycart/transactions/:transactionId/discounts', async (req, res) => {
   try {
