@@ -1444,7 +1444,7 @@ app.get('/foxycart/transactions/:transactionId', async (req, res) => {
 });
 
 // Route for fetching items from a transaction by transactionId
-app.get('/foxycart/transactions/:transactionId/items', async (req, res) => {
+app.get('/foxycart/transactions/:transactionId/itemsx', async (req, res) => {
   try {
     const { transactionId } = req.params;
 
@@ -1475,7 +1475,7 @@ app.get('/foxycart/transactions/:transactionId/items', async (req, res) => {
 });
 
 // Route for fetching a single or multiple items from a transaction by transactionId
-app.get('/foxycart/transactions/:transactionId/items/item', async (req, res) => {
+app.get('/foxycart/transactions/:transactionId/items/itemx', async (req, res) => {
   try {
     const { transactionId } = req.params;
 
@@ -1529,7 +1529,7 @@ app.get('/foxycart/transactions/:transactionId/items/item', async (req, res) => 
 });
 
 // Route for fetching items from a transaction by transactionId
-app.get('/foxycart/transactions/:transactionId/items1', async (req, res) => {
+app.get('/foxycart/transactions/:transactionId/items', async (req, res) => {
   try {
     const { transactionId } = req.params;
 
@@ -1566,7 +1566,7 @@ app.get('/foxycart/transactions/:transactionId/items1', async (req, res) => {
 });
 
 // Route for fetching a single or multiple items from a transaction by transactionId
-app.get('/foxycart/transactions/:transactionId/items/item1', async (req, res) => {
+app.get('/foxycart/transactions/:transactionId/items/item', async (req, res) => {
   try {
     const { transactionId } = req.params;
 
