@@ -1547,12 +1547,9 @@ app.get('/foxycart/transactions/:transactionId/discounts', async (req, res) => {
     // Make the request to FoxyCart API to get transaction discounts
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
 
-    // Check if data is returned successfully
-    if (data && data._embedded && data._embedded['fx:discounts']) {
-      res.json(data._embedded['fx:discounts']); // Return the transaction discounts
-    } else {
-      res.status(404).json({ error: 'Transaction discounts not found or no data returned.' });
-    }
+    // Calculate total discounts or show 0 if null
+    const totalDiscounts = data && data.total_discounts ? data.total_discounts : 0;
+    res.json({ totalDiscounts, discounts: data && data._embedded && data._embedded['fx:discounts'] ? data._embedded['fx:discounts'] : [] });
   } catch (error) {
     console.error('Error fetching transaction discounts:', error);
     res.status(500).json({ error: 'Failed to retrieve transaction discounts from FoxyCart API' });
@@ -1578,19 +1575,15 @@ app.get('/foxycart/transactions/:transactionId/discounts/discount', async (req, 
     // Make the request to FoxyCart API to get transaction discounts
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
 
-    // Check if data and total_discounts are returned successfully
-    if (!data || !data.total_discounts) {
-      return res.status(404).json({ error: 'No discounts found in the transaction' });
-    }
-
-    const totalDiscounts = data.total_discounts;
-    const discounts = data._embedded['fx:discounts'];
+    // Calculate total discounts or show 0 if null
+    const totalDiscounts = data && data.total_discounts ? data.total_discounts : 0;
+    const discounts = data && data._embedded && data._embedded['fx:discounts'] ? data._embedded['fx:discounts'] : [];
 
     // If total_discounts is 1, return the single discount details
     if (totalDiscounts === 1) {
       const singleDiscount = discounts[0];
       const discountHref = singleDiscount._links.self.href; // URL to the discount
-      res.json({ message: 'Single discount found', discountHref, discountDetails: singleDiscount });
+      res.json({ totalDiscounts, message: 'Single discount found', discountHref, discountDetails: singleDiscount });
     }
     // If total_discounts is more than 1, loop through and return all discount details
     else if (totalDiscounts > 1) {
@@ -1601,9 +1594,9 @@ app.get('/foxycart/transactions/:transactionId/discounts/discount', async (req, 
           discountAmount: discount.amount,
         };
       });
-      res.json({ message: 'Multiple discounts found', discountDetails });
+      res.json({ totalDiscounts, message: 'Multiple discounts found', discountDetails });
     } else {
-      res.status(404).json({ error: 'Unexpected number of discounts' });
+      res.json({ totalDiscounts, message: 'No discounts found', discounts: [] });
     }
   } catch (error) {
     console.error('Error fetching transaction discounts:', error);
