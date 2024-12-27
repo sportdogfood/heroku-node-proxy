@@ -1549,7 +1549,9 @@ app.get('/foxycart/transactions/:transactionId/discounts', async (req, res) => {
 
     // Calculate total discounts or show 0 if null
     const totalDiscounts = data && data.total_discounts ? data.total_discounts : 0;
-    res.json({ totalDiscounts, discounts: data && data._embedded && data._embedded['fx:discounts'] ? data._embedded['fx:discounts'] : [] });
+    const discounts = data && data._embedded && data._embedded['fx:discounts'] ? data._embedded['fx:discounts'] : [];
+
+    res.json({ totalDiscounts, discounts });
   } catch (error) {
     console.error('Error fetching transaction discounts:', error);
     res.status(500).json({ error: 'Failed to retrieve transaction discounts from FoxyCart API' });
@@ -1579,25 +1581,8 @@ app.get('/foxycart/transactions/:transactionId/discounts/discount', async (req, 
     const totalDiscounts = data && data.total_discounts ? data.total_discounts : 0;
     const discounts = data && data._embedded && data._embedded['fx:discounts'] ? data._embedded['fx:discounts'] : [];
 
-    // If total_discounts is 1, return the single discount details
-    if (totalDiscounts === 1) {
-      const singleDiscount = discounts[0];
-      const discountHref = singleDiscount._links.self.href; // URL to the discount
-      res.json({ totalDiscounts, message: 'Single discount found', discountHref, discountDetails: singleDiscount });
-    }
-    // If total_discounts is more than 1, loop through and return all discount details
-    else if (totalDiscounts > 1) {
-      const discountDetails = discounts.map((discount) => {
-        return {
-          discountHref: discount._links.self.href,
-          discountName: discount.name,
-          discountAmount: discount.amount,
-        };
-      });
-      res.json({ totalDiscounts, message: 'Multiple discounts found', discountDetails });
-    } else {
-      res.json({ totalDiscounts, message: 'No discounts found', discounts: [] });
-    }
+    // Return total discounts and discount details
+    res.json({ totalDiscounts, discounts });
   } catch (error) {
     console.error('Error fetching transaction discounts:', error);
     res.status(500).json({ error: 'Failed to retrieve transaction discounts from FoxyCart API' });
