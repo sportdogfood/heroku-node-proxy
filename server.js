@@ -1551,7 +1551,12 @@ app.get('/foxycart/transactions/:transactionId/discounts', async (req, res) => {
     const totalDiscounts = data && data.total_discounts ? data.total_discounts : 0;
     const discounts = data && data._embedded && data._embedded['fx:discounts'] ? data._embedded['fx:discounts'] : [];
 
-    res.json({ totalDiscounts, discounts });
+    // Always include messages regardless of totalDiscounts
+    res.json({
+      message: totalDiscounts > 0 ? `Found ${totalDiscounts} discounts.` : 'No discounts found.',
+      totalDiscounts,
+      discounts
+    });
   } catch (error) {
     console.error('Error fetching transaction discounts:', error);
     res.status(500).json({ error: 'Failed to retrieve transaction discounts from FoxyCart API' });
@@ -1581,13 +1586,18 @@ app.get('/foxycart/transactions/:transactionId/discounts/discount', async (req, 
     const totalDiscounts = data && data.total_discounts ? data.total_discounts : 0;
     const discounts = data && data._embedded && data._embedded['fx:discounts'] ? data._embedded['fx:discounts'] : [];
 
-    // Return total discounts and discount details
-    res.json({ totalDiscounts, discounts });
-  } catch (error) {
-    console.error('Error fetching transaction discounts:', error);
-    res.status(500).json({ error: 'Failed to retrieve transaction discounts from FoxyCart API' });
-  }
+    // Always include messages regardless of totalDiscounts
+       res.json({
+          message: totalDiscounts > 0 ? `Found ${totalDiscounts} discounts.` : 'No discounts found.',
+         totalDiscounts,
+         discounts
+        });
+      } catch (error) {
+        console.error('Error fetching transaction discounts:', error);
+       res.status(500).json({ error: 'Failed to retrieve transaction discounts from FoxyCart API' });
+   }
 });
+
 
 // Route for fetching payment details from a transaction by transactionId
 app.get('/foxycart/transactions/:transactionId/payments', async (req, res) => {
