@@ -1823,31 +1823,33 @@ app.get('/foxycart/proxy/customer/default_billing_address', async (req, res) => 
   }
 });
 
-// Route to proxy addresses request
-app.get('/foxycart/proxy/customer/:customer_id/addresses', async (req, res) => {
+// Route for fetching customer addresses by customerId
+app.get('/foxycart/customers/:customerId/addresses', async (req, res) => {
   try {
-    // Extract the customer_id from the request query
-    const customerId = req.query.customer_id;
+    const { customerId } = req.params;
 
     if (!customerId) {
       return res.status(400).json({ error: 'Customer ID is required' });
     }
 
-    // Use cached or new access token for authentication
+    // Get access token from cache or refresh
     const accessToken = await getCachedOrNewAccessToken();
-
-    // Make the request to FoxyCart to get customer addresses
-    
     const apiUrl = `https://api.foxycart.com/customers/${encodeURIComponent(customerId)}/addresses`;
+
+    // Make the request to FoxyCart API
     const data = await makeFoxyCartRequest('GET', apiUrl, accessToken);
 
-    // Return the customer addresses to the front end
-    res.json(data);
+    if (data) {
+      res.json(data); // Return the customer addresses if found
+    } else {
+      res.status(404).json({ error: 'Customer addresses not found.' });
+    }
   } catch (error) {
     console.error('Error fetching customer addresses:', error);
     res.status(500).json({ error: 'Failed to retrieve customer addresses from FoxyCart API' });
   }
 });
+
 
 // Route to proxy transactions request
 app.get('/foxycart/proxy/customer/transactions', async (req, res) => {
