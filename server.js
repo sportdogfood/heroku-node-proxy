@@ -1274,7 +1274,7 @@ app.get('/foxycart/items/:itemId', async (req, res) => {
 });
 
 // Route for triggering webhook for a subscription by subscription_id
-app.patch('/foxycart/subscriptions/:subscription_id/send_webhooks', async (req, res) => {
+app.post('/foxycart/subscriptions/:subscription_id/send_webhooks', async (req, res) => {
   try {
     const { subscription_id } = req.params;
 
