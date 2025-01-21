@@ -414,11 +414,13 @@ app.get('/foxycart/customers/:customerId/attributes/attributes/thrive', async (r
         loyalty_level: null,
         zoho_crm_id: null,
         loyalty_coupon: null,
+        lifetime_spend: null, // Added Lifetime_Spend
         isEligibleForCoupon: false
       };
 
       let loyaltyPoints = 0;
       let loyaltyLevel = '';
+      let lifetimeSpend = 0.0; // Initialize Lifetime_Spend
 
       // Loop through each attribute and find the desired ones
       attributes.forEach(attribute => {
@@ -426,7 +428,7 @@ app.get('/foxycart/customers/:customerId/attributes/attributes/thrive', async (r
           case 'Loyalty_Points':
             loyaltyPoints = parseInt(attribute.value, 10) || 0;
             result.loyalty_points = {
-              value: attribute.value,
+              value: loyaltyPoints,
               href: attribute._links.self.href
             };
             break;
@@ -449,15 +451,32 @@ app.get('/foxycart/customers/:customerId/attributes/attributes/thrive', async (r
               href: attribute._links.self.href
             };
             break;
+          case 'Lifetime_Spend': // Handling Lifetime_Spend
+            lifetimeSpend = parseFloat(attribute.value) || 0.0;
+            result.lifetime_spend = {
+              value: lifetimeSpend,
+              href: attribute._links.self.href
+            };
+            break;
         }
       });
 
-      // Ensure no attribute is left as null, assign an empty object if null
+      // Ensure no attribute is left as null, assign an empty object or default value if null
       Object.keys(result).forEach(key => {
         if (result[key] === null) {
-          result[key] = {};
+          if (key === 'lifetime_spend') {
+            result[key] = {
+              value: 0.0,
+              href: ''
+            };
+          } else {
+            result[key] = {};
+          }
         }
       });
+
+      // Example: You can use lifetimeSpend in eligibility logic if needed
+      // For now, it remains separate
 
       // Evaluate if the user is eligible for a coupon
       if (
@@ -478,6 +497,8 @@ app.get('/foxycart/customers/:customerId/attributes/attributes/thrive', async (r
     res.status(500).json({ error: 'Failed to retrieve customer attributes from FoxyCart API' });
   }
 });
+
+
 
 
 // Route for fetching a specific attribute by customerId and searchname
