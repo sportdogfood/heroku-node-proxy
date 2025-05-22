@@ -1968,6 +1968,71 @@ app.post('/foxycart/proxy/customer/session', async (req, res) => {
   }
 });
 
+// Update default billing address
+app.patch('/foxycart/customers/:customerId/default_billing_address', async (req, res) => {
+  try {
+    const { customerId } = req.params;
+    const updatedFields = req.body; // Accepts street, city, state, zip, etc.
+
+    if (!customerId || !updatedFields) {
+      return res.status(400).json({ error: 'Customer ID and address fields required' });
+    }
+
+    const accessToken = await getCachedOrNewAccessToken();
+    const apiUrl = `https://api.foxycart.com/customers/${customerId}/default_billing_address`;
+
+    // Make PATCH request to FoxyCart (send only fields the user updated)
+    const data = await makeFoxyCartRequest('PATCH', apiUrl, accessToken, updatedFields);
+
+    return res.status(200).json({ message: 'Billing address updated', data });
+  } catch (error) {
+    console.error('Error updating billing address:', error);
+    res.status(500).json({ error: 'Failed to update billing address' });
+  }
+});
+
+
+app.patch('/foxycart/customers/:customerId/default_shipping_address', async (req, res) => {
+  try {
+    const { customerId } = req.params;
+    const updatedFields = req.body;
+
+    if (!customerId || !updatedFields) {
+      return res.status(400).json({ error: 'Customer ID and address fields required' });
+    }
+
+    const accessToken = await getCachedOrNewAccessToken();
+    const apiUrl = `https://api.foxycart.com/customers/${customerId}/default_shipping_address`;
+
+    const data = await makeFoxyCartRequest('PATCH', apiUrl, accessToken, updatedFields);
+
+    return res.status(200).json({ message: 'Shipping address updated', data });
+  } catch (error) {
+    console.error('Error updating shipping address:', error);
+    res.status(500).json({ error: 'Failed to update shipping address' });
+  }
+});
+
+app.patch('/foxycart/customers/:customerId/default_payment_method', async (req, res) => {
+  try {
+    const { customerId } = req.params;
+    const updatedFields = req.body;
+
+    if (!customerId || !updatedFields) {
+      return res.status(400).json({ error: 'Customer ID and payment fields required' });
+    }
+
+    const accessToken = await getCachedOrNewAccessToken();
+    const apiUrl = `https://api.foxycart.com/customers/${customerId}/default_payment_method`;
+
+    const data = await makeFoxyCartRequest('PATCH', apiUrl, accessToken, updatedFields);
+
+    return res.status(200).json({ message: 'Payment method updated', data });
+  } catch (error) {
+    console.error('Error updating payment method:', error);
+    res.status(500).json({ error: 'Failed to update payment method' });
+  }
+});
 
 
 // Route to refresh and display a new access token
