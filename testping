@@ -1,0 +1,118 @@
+void automation.pingInvoiceItems(String transactionsId)
+{
+    // -----------------------------------
+    // Function: pingInvoiceItems
+    // Purpose: Create records in the Invoice-Items module for each transaction item
+    // -----------------------------------
+    info "Entered pingInvoiceItems for Transaction ID: " + transactionsId;
+
+    // Step 1: Initialize Common Headers
+    headers = Map();
+    headers.put("Content-Type", "application/json");
+
+    // Step 2: Ping External API to Get Items Data
+    apiUrl = "https://sportcorsproxy.herokuapp.com/foxycart/transactions/" + transactionsId + "/items";
+    try 
+    {
+        apiResponse = getUrl(apiUrl, headers);
+        info "API Raw Response: " + apiResponse;
+    }
+    catch (e)
+    {
+        info "GET request to external API failed: " + e.toString();
+        return;
+    }
+
+    // Step 3: Parse API Response and Extract Items
+    try 
+    {
+        apiDataMap = apiResponse.toMap();
+        if (apiDataMap.containsKey("items") && apiDataMap.get("items") != null)
+        {
+            itemsList = apiDataMap.get("items").toList();
+            info "Number of items retrieved from API: " + itemsList.size();
+        }
+        else
+        {
+            info "No 'items' key found in API response.";
+            return;
+        }
+    }
+    catch (e)
+    {
+        info "Error parsing API JSON response: " + e.toString();
+        return;
+    }
+
+    // Step 4: Process Each Item and Create Individual Records
+    for each item in itemsList
+    {
+        if (item != null)
+        {
+            // Extract item details
+            selfHref = "Unknown";
+            if (item.containsKey("_links") && item.get("_links").toMap().containsKey("self"))
+            {
+                selfHref = item.get("_links").toMap().get("self").toMap().get("href").toString();
+            }
+            selfId = "Unknown";
+            if (selfHref.length() >= 9)
+            {
+                selfId = selfHref.right(9);
+            }
+            itemName = "N/A";
+            if (item.containsKey("name") && item.get("name") != null)
+            {
+                itemName = item.get("name").toString();
+            }
+            itemQuantity = 0;
+            if (item.containsKey("quantity") && item.get("quantity") != null)
+            {
+                itemQuantity = item.get("quantity").toNumber();
+            }
+            itemCode = "";
+            if (item.containsKey("code") && item.get("code") != null)
+            {
+                itemCode = item.get("code").toString();
+            }
+            itemWeight = 0;
+            if (item.containsKey("weight") && item.get("weight") != null)
+            {
+                itemWeight = item.get("weight").toNumber();
+            }
+
+            // Create a record for each unit of quantity
+            for index in List(1 .. itemQuantity)
+            {
+                invoiceItemMap = Map();
+                invoiceItemMap.put("Name", transactionsId); // Use transaction ID as Name
+                invoiceItemMap.put("Transaction", {"id": transactionsId}); // Transaction lookup
+                invoiceItemMap.put("item_id", selfId);
+                invoiceItemMap.put("item_name", itemName);
+                invoiceItemMap.put("item_quantity", 1); // Single unit per record
+                invoiceItemMap.put("item_weight", itemWeight);
+                invoiceItemMap.put("item_code", itemCode);
+
+                // Add to CRM
+                try 
+                {
+                    createResponse = zoho.crm.createRecord("Invoice-Items", invoiceItemMap);
+                    if (createResponse.containsKey("id"))
+                    {
+                        info "Created Invoice-Items record with ID: " + createResponse.get("id").toString();
+                    }
+                    else
+                    {
+                        info "Failed to create Invoice-Items record. Response: " + createResponse.toString();
+                    }
+                }
+                catch (e)
+                {
+                    info "Error creating Invoice-Items record: " + e.toString();
+                }
+            }
+        }
+    }
+
+    info "Processed all items and created Invoice-Items records successfully.";
+}
